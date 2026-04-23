@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+pydantic
+pydantic-settings
+openai
+httpx
+tenacity
+azure-monitor-opentelemetry
+structlog
+python-dotenv
+pytest
+pytest-asyncio
