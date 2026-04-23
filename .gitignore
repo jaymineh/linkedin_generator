@@ -19,6 +19,7 @@ frontend/node_modules/
 .env
 .env.local
 .env.*.local
+.deploy.auto.json
 
 # IDE
 .vscode/
@@ -39,3 +40,6 @@ crash.log
 
 # Docker
 *.log
+
+# Test cache
+.pytest_cache/
