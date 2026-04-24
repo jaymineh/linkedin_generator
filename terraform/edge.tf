@@ -109,7 +109,7 @@ resource "azurerm_cdn_frontdoor_route" "frontend" {
 }
 
 resource "azurerm_cdn_frontdoor_firewall_policy" "main" {
-  name                = "waf-${replace(local.prefix, "-", "")}"
+  name                = "waf${replace(local.prefix, "-", "")}"
   resource_group_name = azurerm_resource_group.main.name
   sku_name            = azurerm_cdn_frontdoor_profile.main.sku_name
   enabled             = true
