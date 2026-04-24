@@ -158,7 +158,6 @@ locals {
           title        = "API Requests"
           query        = <<-EOT
           AppRequests
-          | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
           | summarize Requests = count() by bin(TimeGenerated, 1h)
           | order by TimeGenerated asc
           | render timechart
@@ -176,7 +175,6 @@ locals {
           title        = "Failed Requests"
           query        = <<-EOT
           AppRequests
-          | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
           | where Success == false
           | summarize FailedRequests = count() by bin(TimeGenerated, 1h)
           | order by TimeGenerated asc
@@ -195,7 +193,6 @@ locals {
           title        = "Average API Latency ms"
           query        = <<-EOT
           AppRequests
-          | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
           | summarize AvgDurationMs = avg(DurationMs) by bin(TimeGenerated, 1h)
           | order by TimeGenerated asc
           | render timechart
@@ -213,7 +210,6 @@ locals {
           title        = "Generation Requests by Tone"
           query        = <<-EOT
           AppMetrics
-          | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
           | where Name == "linkedin_generator.generation.requests"
           | extend Tone = tostring(Properties["tone"])
           | summarize Requests = sum(Sum) by Tone
@@ -233,7 +229,6 @@ locals {
           title        = "Style Mode Mix"
           query        = <<-EOT
           AppMetrics
-          | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
           | where Name == "linkedin_generator.generation.requests"
           | extend StyleMode = tostring(Properties["style_mode"])
           | summarize Requests = sum(Sum) by StyleMode
@@ -252,7 +247,6 @@ locals {
           title        = "Source Type Mix"
           query        = <<-EOT
           AppMetrics
-          | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
           | where Name == "linkedin_generator.generation.requests"
           | extend SourceType = tostring(Properties["source_type"])
           | summarize Requests = sum(Sum) by SourceType
@@ -271,7 +265,6 @@ locals {
           title        = "Average Generation Latency ms"
           query        = <<-EOT
           AppMetrics
-          | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
           | where Name == "linkedin_generator.generation.duration_ms"
           | summarize AvgLatencyMs = round(sum(Sum) / sum(ItemCount), 2) by bin(TimeGenerated, 1h)
           | order by TimeGenerated asc
@@ -290,7 +283,6 @@ locals {
           title        = "Generation Failures by Tone"
           query        = <<-EOT
           AppMetrics
-          | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
           | where Name == "linkedin_generator.generation.failures"
           | extend Tone = tostring(Properties["tone"])
           | summarize Failures = sum(Sum) by Tone
@@ -310,7 +302,6 @@ locals {
           title        = "OpenAI Latency ms"
           query        = <<-EOT
           AppMetrics
-          | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
           | where Name == "linkedin_generator.openai.duration_ms"
           | summarize AvgLatencyMs = round(sum(Sum) / sum(ItemCount), 2) by bin(TimeGenerated, 1h)
           | order by TimeGenerated asc
@@ -329,7 +320,6 @@ locals {
           title        = "Style Imports by Sample Bucket"
           query        = <<-EOT
           AppMetrics
-          | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
           | where Name == "linkedin_generator.style_import.requests"
           | extend SampleBucket = tostring(Properties["sample_bucket"])
           | summarize Imports = sum(Sum) by SampleBucket
@@ -349,7 +339,6 @@ locals {
           title        = "Frontend Generate Outcomes"
           query        = <<-EOT
           AppEvents
-          | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
           | where Name in ("frontend_generate_submitted", "frontend_generate_succeeded", "frontend_generate_failed")
           | summarize Events = count() by Name
           | render piechart
@@ -367,7 +356,6 @@ locals {
           title        = "Frontend Events by Page"
           query        = <<-EOT
           AppEvents
-          | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
           | where Name startswith "frontend_"
           | extend Page = tostring(Properties["surface"])
           | extend Page = iff(isempty(Page), "general", Page)
@@ -388,7 +376,6 @@ locals {
           title        = "Recent Failed Requests"
           query        = <<-EOT
           AppRequests
-          | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
           | where Success == false
           | project TimeGenerated, Name, ResultCode, DurationMs, Url
           | order by TimeGenerated desc
