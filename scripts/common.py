@@ -4,6 +4,7 @@ import json
 import os
 import re
 import secrets
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -42,12 +43,15 @@ def run(
     check: bool = True,
     capture_output: bool = True,
 ) -> str:
+    resolved_command = list(command)
+    resolved_command[0] = resolve_executable(command[0])
+
     merged_env = os.environ.copy()
     if env:
         merged_env.update(env)
 
     process = subprocess.run(
-        command,
+        resolved_command,
         cwd=str(cwd or ROOT),
         env=merged_env,
         text=True,
@@ -56,9 +60,44 @@ def run(
 
     if check and process.returncode != 0:
         details = process.stderr.strip() or process.stdout.strip() or "Unknown command failure"
-        raise CommandError(f"{' '.join(command)}\n{details}")
+        raise CommandError(f"{mask_command(command)}\n{details}")
 
     return process.stdout.strip()
+
+
+def resolve_executable(command: str) -> str:
+    if os.name != "nt":
+        return command
+
+    candidates = [command]
+    windows_aliases = {
+        "az": ["az.cmd", "az"],
+        "npm": ["npm.cmd", "npm"],
+        "npx": ["npx.cmd", "npx"],
+        "gh": ["gh.exe", "gh"],
+        "terraform": ["terraform.exe", "terraform"],
+        "git": ["git.exe", "git"],
+    }
+    candidates = windows_aliases.get(command, [command])
+
+    for candidate in candidates:
+        resolved = shutil.which(candidate)
+        if resolved:
+            return resolved
+
+    return command
+
+
+def mask_command(command: list[str]) -> str:
+    masked: list[str] = []
+    for item in command:
+        if item.startswith("-var=openai_api_key="):
+            masked.append("-var=openai_api_key=***")
+        elif item.startswith("-var=db_password="):
+            masked.append("-var=db_password=***")
+        else:
+            masked.append(item)
+    return " ".join(masked)
 
 
 def run_json(command: list[str], *, cwd: Path | None = None) -> Any:

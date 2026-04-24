@@ -17,6 +17,7 @@ from common import (
     generate_db_password,
     get_git_remote_repo,
     get_openai_key,
+    gh_secret_delete,
     gh_secret_set,
     load_config,
     load_local_env,
@@ -268,10 +269,17 @@ def main() -> None:
         gh_secret_set(owner, repo, "AZURE_CLIENT_ID", app_id)
         gh_secret_set(owner, repo, "AZURE_TENANT_ID", account["tenant_id"])
         gh_secret_set(owner, repo, "AZURE_SUBSCRIPTION_ID", account["subscription_id"])
+        gh_secret_set(owner, repo, "AZURE_RESOURCE_GROUP", resource_group_name())
+        gh_secret_set(owner, repo, "TF_BACKEND_RESOURCE_GROUP", args.tfstate_resource_group)
         gh_secret_set(owner, repo, "TF_BACKEND_STORAGE_ACCOUNT", tfstate_storage_account)
+        gh_secret_set(owner, repo, "TF_BACKEND_CONTAINER", args.tfstate_container)
+        gh_secret_set(owner, repo, "TF_BACKEND_KEY", args.tfstate_key)
         gh_secret_set(owner, repo, "OPENAI_API_KEY", openai_api_key)
         gh_secret_set(owner, repo, "DB_PASSWORD", db_password)
-        gh_secret_set(owner, repo, "ALERT_EMAIL", args.alert_email)
+        if args.alert_email:
+            gh_secret_set(owner, repo, "ALERT_EMAIL", args.alert_email)
+        else:
+            gh_secret_delete(owner, repo, "ALERT_EMAIL")
 
     config = {
         "repo_owner": owner,
@@ -300,7 +308,7 @@ def main() -> None:
     if args.skip_github_secrets:
         echo("GitHub secrets were skipped.")
     echo("")
-    echo("Next: run `python scripts/deploy.py`")
+    echo("Next: push your code to `main` and GitHub Actions will deploy it automatically.")
 
 
 if __name__ == "__main__":

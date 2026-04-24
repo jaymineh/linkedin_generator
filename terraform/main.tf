@@ -50,7 +50,7 @@ resource "random_string" "db_suffix" {
 resource "azurerm_postgresql_flexible_server" "main" {
   name                   = "psql-${local.prefix}-${random_string.db_suffix.result}"
   resource_group_name    = azurerm_resource_group.main.name
-  location               = azurerm_resource_group.main.location
+  location               = var.postgres_location
   version                = "16"
   administrator_login    = "pgadmin"
   administrator_password = var.db_password
@@ -60,6 +60,10 @@ resource "azurerm_postgresql_flexible_server" "main" {
   tags                   = local.common_tags
 
   public_network_access_enabled = true
+
+  lifecycle {
+    ignore_changes = [zone]
+  }
 }
 
 resource "azurerm_postgresql_flexible_server_configuration" "require_ssl" {
@@ -133,7 +137,6 @@ resource "azurerm_container_app" "backend" {
         transport        = "HTTP"
         path             = "/health/ready"
         port             = 8000
-        initial_delay    = 5
         interval_seconds = 10
       }
     }

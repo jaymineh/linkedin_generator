@@ -1,6 +1,6 @@
 # LinkedIn Generator
 
-This repo can be bootstrapped, deployed, and destroyed with Python scripts so the Azure setup is largely automated.
+This repo uses Python scripts for one-time bootstrap and destroy, while production deploys run from GitHub Actions.
 
 ## Prerequisites
 
@@ -26,30 +26,17 @@ Optional overrides:
 python scripts/bootstrap.py --tfstate-storage-account myuniquetfstate123 --alert-email you@example.com
 ```
 
-## Full deploy
+## Production deploy
 
-This performs the full Azure deploy flow:
+Production deploys happen in GitHub Actions, not on your local machine.
 
-1. Terraform init with remote state
-2. bootstrap apply for resource group + ACR
-3. build backend image in ACR
-4. full Terraform apply
-5. tighten CORS to the deployed frontend URL
-6. build the frontend
-7. upload the frontend to Azure Static Web Apps
-8. smoke-test backend and frontend
+After bootstrap is complete:
 
-```bash
-python scripts/deploy.py
-```
+1. Commit your changes
+2. Push to `main`
+3. The `Deploy` workflow builds the backend image on the GitHub runner, pushes it to ACR, applies Terraform, builds the frontend, deploys it to Static Web Apps, tightens CORS, and smoke-tests the live app
 
-Useful options:
-
-```bash
-python scripts/deploy.py --backend-image-tag customtag
-python scripts/deploy.py --skip-frontend
-python scripts/deploy.py --allowed-origins https://example.com
-```
+If you run `python scripts/deploy.py`, it will only remind you to deploy through GitHub Actions.
 
 ## Full destroy
 

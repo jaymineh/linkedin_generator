@@ -3,13 +3,21 @@ name: Deploy
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   id-token: write
   contents: read
 
+concurrency:
+  group: prod-deploy
+  cancel-in-progress: false
+
 env:
-  RESOURCE_GROUP: rg-linkedin-gen-prod
+  RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  BACKEND_IMAGE_TAG: ${{ github.sha }}
 
 jobs:
   deploy:
@@ -23,21 +31,6 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Get ACR details
-        id: acr
-        run: |
-          ACR_NAME=$(az acr list -g $RESOURCE_GROUP --query "[0].name" -o tsv)
-          echo "name=$ACR_NAME" >> $GITHUB_OUTPUT
-          echo "server=$(az acr show -n $ACR_NAME --query loginServer -o tsv)" >> $GITHUB_OUTPUT
-
-      - name: Build and push backend image
-        run: |
-          az acr build \
-            --registry ${{ steps.acr.outputs.name }} \
-            --image backend:${{ github.sha }} \
-            --image backend:latest \
-            ./backend
-
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.6.6"
@@ -46,28 +39,66 @@ jobs:
         working-directory: terraform
         run: |
           terraform init \
-            -backend-config="storage_account_name=${{ secrets.TF_BACKEND_STORAGE_ACCOUNT }}"
+            -backend-config="resource_group_name=${{ secrets.TF_BACKEND_RESOURCE_GROUP }}" \
+            -backend-config="storage_account_name=${{ secrets.TF_BACKEND_STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=${{ secrets.TF_BACKEND_CONTAINER }}" \
+            -backend-config="key=${{ secrets.TF_BACKEND_KEY }}"
 
-      - name: Terraform apply
+      - name: Bootstrap resource group and ACR
+        working-directory: terraform
+        run: |
+          terraform apply -auto-approve \
+            -target=azurerm_resource_group.main \
+            -target=azurerm_container_registry.acr \
+            -var="openai_api_key=${{ secrets.OPENAI_API_KEY }}" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="alert_email=${{ secrets.ALERT_EMAIL }}" \
+            -var="backend_image_tag=${BACKEND_IMAGE_TAG}" \
+            -var="allowed_origins=*"
+
+      - name: Get ACR details
+        id: acr
+        run: |
+          ACR_NAME=$(az acr list -g "$RESOURCE_GROUP" --query "[0].name" -o tsv)
+          echo "name=$ACR_NAME" >> "$GITHUB_OUTPUT"
+          echo "server=$(az acr show -n "$ACR_NAME" --query loginServer -o tsv)" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push backend image
+        run: |
+          ACR_SERVER="${{ steps.acr.outputs.server }}"
+          ACR_USERNAME=$(az acr credential show -n "${{ steps.acr.outputs.name }}" --query username -o tsv)
+          ACR_PASSWORD=$(az acr credential show -n "${{ steps.acr.outputs.name }}" --query "passwords[0].value" -o tsv)
+          docker login "$ACR_SERVER" -u "$ACR_USERNAME" -p "$ACR_PASSWORD"
+          docker build ./backend \
+            -t "$ACR_SERVER/backend:${BACKEND_IMAGE_TAG}" \
+            -t "$ACR_SERVER/backend:latest"
+          docker push "$ACR_SERVER/backend:${BACKEND_IMAGE_TAG}"
+          docker push "$ACR_SERVER/backend:latest"
+
+      - name: Apply infrastructure
         working-directory: terraform
         run: |
           terraform apply -auto-approve \
             -var="openai_api_key=${{ secrets.OPENAI_API_KEY }}" \
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
             -var="alert_email=${{ secrets.ALERT_EMAIL }}" \
-            -var="backend_image_tag=${{ github.sha }}"
+            -var="backend_image_tag=${BACKEND_IMAGE_TAG}" \
+            -var="allowed_origins=*"
+
+      - name: Capture Terraform outputs
+        run: |
+          echo "BACKEND_URL=$(terraform -chdir=terraform output -raw backend_url)" >> "$GITHUB_ENV"
+          echo "FRONTEND_URL=$(terraform -chdir=terraform output -raw frontend_url)" >> "$GITHUB_ENV"
 
       - name: Smoke test backend readiness
-        run: |
-          BACKEND_URL=$(terraform -chdir=terraform output -raw backend_url)
-          curl --fail --silent --show-error "$BACKEND_URL/health/ready"
+        run: curl --fail --silent --show-error "$BACKEND_URL/health/ready"
 
       - name: Get Static Web App deploy token
         id: swa
         run: |
-          SWA_NAME=$(az staticwebapp list -g $RESOURCE_GROUP --query "[0].name" -o tsv)
-          TOKEN=$(az staticwebapp secrets list -n $SWA_NAME --query "properties.apiKey" -o tsv)
-          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+          SWA_NAME=$(az staticwebapp list -g "$RESOURCE_GROUP" --query "[0].name" -o tsv)
+          TOKEN=$(az staticwebapp secrets list -n "$SWA_NAME" -g "$RESOURCE_GROUP" --query "properties.apiKey" -o tsv)
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -78,7 +109,7 @@ jobs:
         working-directory: frontend
         run: |
           npm ci
-          NEXT_PUBLIC_API_URL=$(terraform -chdir=../terraform output -raw backend_url) npm run build
+          NEXT_PUBLIC_API_URL="$BACKEND_URL" npm run build
 
       - name: Deploy frontend
         uses: Azure/static-web-apps-deploy@v1
@@ -87,3 +118,18 @@ jobs:
           action: "upload"
           app_location: "frontend/out"
           skip_app_build: true
+
+      - name: Tighten CORS to deployed frontend
+        working-directory: terraform
+        run: |
+          terraform apply -auto-approve \
+            -var="openai_api_key=${{ secrets.OPENAI_API_KEY }}" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="alert_email=${{ secrets.ALERT_EMAIL }}" \
+            -var="backend_image_tag=${BACKEND_IMAGE_TAG}" \
+            -var="allowed_origins=${FRONTEND_URL}"
+
+      - name: Final smoke tests
+        run: |
+          curl --fail --silent --show-error "$BACKEND_URL/health/ready"
+          curl --fail --silent --show-error "$FRONTEND_URL"

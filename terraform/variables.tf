@@ -2,6 +2,11 @@ variable "location" {
   default = "East US"
 }
 
+variable "postgres_location" {
+  description = "Azure region for PostgreSQL Flexible Server"
+  default     = "Central US"
+}
+
 variable "project" {
   default = "linkedin-gen"
 }
