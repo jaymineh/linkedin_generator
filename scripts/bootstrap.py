@@ -230,6 +230,64 @@ def ensure_app_registration(
     return app_id, service_principal_object_id
 
 
+def ensure_state_storage_access(
+    *,
+    resource_group: str,
+    storage_account: str,
+    service_principal_object_id: str,
+) -> None:
+    echo("Ensuring GitHub Actions can access Terraform state...")
+    storage_account_id = run(
+        [
+            "az",
+            "storage",
+            "account",
+            "show",
+            "--name",
+            storage_account,
+            "--resource-group",
+            resource_group,
+            "--query",
+            "id",
+            "-o",
+            "tsv",
+        ]
+    )
+    assignments = run_json(
+        [
+            "az",
+            "role",
+            "assignment",
+            "list",
+            "--assignee-object-id",
+            service_principal_object_id,
+            "--scope",
+            storage_account_id,
+            "-o",
+            "json",
+        ]
+    ) or []
+    if not any(item.get("roleDefinitionName") == "Storage Blob Data Contributor" for item in assignments):
+        run(
+            [
+                "az",
+                "role",
+                "assignment",
+                "create",
+                "--assignee-object-id",
+                service_principal_object_id,
+                "--assignee-principal-type",
+                "ServicePrincipal",
+                "--role",
+                "Storage Blob Data Contributor",
+                "--scope",
+                storage_account_id,
+                "-o",
+                "none",
+            ]
+        )
+
+
 def main() -> None:
     args = parse_args()
     ensure_command("az", "Install Azure CLI first.")
@@ -262,6 +320,11 @@ def main() -> None:
         owner=owner,
         repo=repo,
         subscription_id=account["subscription_id"],
+    )
+    ensure_state_storage_access(
+        resource_group=args.tfstate_resource_group,
+        storage_account=tfstate_storage_account,
+        service_principal_object_id=sp_object_id,
     )
 
     if not args.skip_github_secrets:
