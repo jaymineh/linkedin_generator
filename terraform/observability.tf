@@ -70,11 +70,11 @@ resource "azurerm_monitor_diagnostic_setting" "postgres" {
 
 locals {
   operations_dashboard = {
-    lenses = {
-      "0" = {
+    lenses = [
+      {
         order = 0
-        parts = {
-          "0" = {
+        parts = [
+          {
             position = {
               x       = 0
               y       = 0
@@ -107,8 +107,8 @@ locals {
                 }
               }
             }
-          }
-          "1" = {
+          },
+          {
             position = {
               x       = 4
               y       = 0
@@ -136,8 +136,8 @@ locals {
               ]
               type = "Extension/Microsoft_Azure_Monitoring/PartType/MetricsChartPart"
             }
-          }
-          "2" = {
+          },
+          {
             position = {
               x       = 10
               y       = 0
@@ -165,8 +165,8 @@ locals {
               ]
               type = "Extension/Microsoft_Azure_Monitoring/PartType/MetricsChartPart"
             }
-          }
-          "3" = {
+          },
+          {
             position = {
               x       = 0
               y       = 4
@@ -194,8 +194,8 @@ locals {
               ]
               type = "Extension/Microsoft_Azure_Monitoring/PartType/MetricsChartPart"
             }
-          }
-          "4" = {
+          },
+          {
             position = {
               x       = 8
               y       = 4
@@ -223,8 +223,8 @@ locals {
               ]
               type = "Extension/Microsoft_Azure_Monitoring/PartType/MetricsChartPart"
             }
-          }
-          "5" = {
+          },
+          {
             position = {
               x       = 12
               y       = 4
@@ -253,9 +253,9 @@ locals {
               type = "Extension/Microsoft_Azure_Monitoring/PartType/MetricsChartPart"
             }
           }
-        }
+        ]
       }
-    }
+    ]
     metadata = {
       model = {
         timeRange = {
