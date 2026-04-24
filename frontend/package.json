@@ -10,6 +10,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@clerk/clerk-react": "^5.61.6",
     "@microsoft/applicationinsights-web": "^3.4.1",
     "next": "^16.2.4",
     "react": "^19.2.5",

@@ -8,6 +8,12 @@ interface Props {
   onProfileUpdated: (profile: StyleProfile) => void;
 }
 
+const panelClass =
+  "mt-8 flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white/80 p-6 shadow-lg shadow-indigo-500/5 backdrop-blur-md dark:border-slate-700/80 dark:bg-slate-900/60 dark:shadow-none";
+
+const textareaClass =
+  "w-full rounded-xl border border-slate-200/90 bg-white/90 px-3.5 py-2.5 text-sm text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/30 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500";
+
 export default function StyleImportPanel({ existingProfile, onProfileUpdated }: Props) {
   const [rawPosts, setRawPosts] = useState("");
   const [loading, setLoading] = useState(false);
@@ -55,12 +61,12 @@ export default function StyleImportPanel({ existingProfile, onProfileUpdated }: 
   };
 
   return (
-    <div className="mt-8 flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-5">
+    <div className={panelClass}>
       <div>
-        <h2 className="text-sm font-semibold text-gray-900">Learn My Writing Style</h2>
-        <p className="mt-1 text-xs text-gray-500">
-          Paste previous LinkedIn posts separated by <code>---</code>. The app will build a
-          reusable style profile.
+        <h2 className="text-base font-bold text-slate-900 dark:text-white">Learn my writing style</h2>
+        <p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+          Paste previous LinkedIn posts separated by <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">---</code>
+          . The app builds a reusable profile for faithful or improved drafts.
         </p>
       </div>
 
@@ -69,32 +75,32 @@ export default function StyleImportPanel({ existingProfile, onProfileUpdated }: 
         onChange={(e) => setRawPosts(e.target.value)}
         rows={10}
         placeholder={"Post 1...\n---\nPost 2...\n---\nPost 3..."}
-        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+        className={textareaClass}
       />
 
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-gray-400">{parsedCount} posts detected</span>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{parsedCount} posts detected</span>
         <button
           type="button"
           onClick={handleAnalyze}
           disabled={loading}
-          className="rounded-lg bg-gray-900 px-4 py-2 text-sm text-white disabled:opacity-50"
+          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-slate-800 disabled:opacity-50 dark:bg-indigo-500 dark:hover:bg-indigo-400"
         >
-          {loading ? "Analyzing..." : "Analyze Style"}
+          {loading ? "Analyzing…" : "Analyze style"}
         </button>
       </div>
 
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="text-xs font-medium text-red-600 dark:text-red-300">{error}</p>}
 
       {existingProfile && (
-        <div className="border-t border-gray-100 pt-4 text-sm text-gray-700">
-          <p className="font-medium text-gray-900">Current style profile</p>
-          <p className="mt-2">{existingProfile.voice_summary}</p>
-          <p className="mt-3 text-xs text-gray-500">
+        <div className="border-t border-slate-100 pt-4 text-sm text-slate-700 dark:border-slate-700 dark:text-slate-200">
+          <p className="font-semibold text-slate-900 dark:text-white">Current style profile</p>
+          <p className="mt-2 leading-relaxed">{existingProfile.voice_summary}</p>
+          <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
             Based on {existingProfile.sample_count} imported posts.
           </p>
           {existingProfile.opening_patterns.length > 0 && (
-            <p className="mt-2 text-xs text-gray-500">
+            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
               Typical openings: {existingProfile.opening_patterns.join(", ")}
             </p>
           )}

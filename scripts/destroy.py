@@ -79,6 +79,7 @@ def main() -> None:
             "OPENAI_API_KEY",
             "DB_PASSWORD",
             "ALERT_EMAIL",
+            "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
         ]:
             gh_secret_delete(owner, repo, name)
 

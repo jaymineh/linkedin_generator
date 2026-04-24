@@ -8,6 +8,9 @@ interface Props {
   hasStyleProfile: boolean;
 }
 
+const inputClass =
+  "w-full rounded-xl border border-slate-200/90 bg-white/90 px-3.5 py-2.5 text-sm text-slate-900 shadow-inner shadow-slate-900/5 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/30 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-indigo-400";
+
 export default function GeneratorForm({ onGenerate, loading, hasStyleProfile }: Props) {
   const [topic, setTopic] = useState("");
   const [audience, setAudience] = useState("developers");
@@ -32,7 +35,7 @@ export default function GeneratorForm({ onGenerate, loading, hasStyleProfile }: 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">
+        <label className="mb-1.5 block text-sm font-semibold text-slate-800 dark:text-slate-200">
           What do you want to post about?
         </label>
         <textarea
@@ -40,18 +43,14 @@ export default function GeneratorForm({ onGenerate, loading, hasStyleProfile }: 
           onChange={(e) => setTopic(e.target.value)}
           rows={4}
           placeholder="e.g. Why AI engineers need to understand infrastructure"
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={inputClass}
           required
         />
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Target Audience</label>
-        <select
-          value={audience}
-          onChange={(e) => setAudience(e.target.value)}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-        >
+        <label className="mb-1.5 block text-sm font-semibold text-slate-800 dark:text-slate-200">Target audience</label>
+        <select value={audience} onChange={(e) => setAudience(e.target.value)} className={inputClass}>
           <option value="developers">Developers</option>
           <option value="executives">Executives / Leadership</option>
           <option value="job_seekers">Job Seekers</option>
@@ -60,12 +59,8 @@ export default function GeneratorForm({ onGenerate, loading, hasStyleProfile }: 
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Tone</label>
-        <select
-          value={tone}
-          onChange={(e) => setTone(e.target.value)}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-        >
+        <label className="mb-1.5 block text-sm font-semibold text-slate-800 dark:text-slate-200">Tone</label>
+        <select value={tone} onChange={(e) => setTone(e.target.value)} className={inputClass}>
           <option value="professional">Professional</option>
           <option value="casual">Casual</option>
           <option value="storytelling">Storytelling</option>
@@ -74,43 +69,43 @@ export default function GeneratorForm({ onGenerate, loading, hasStyleProfile }: 
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Writing Style</label>
+        <label className="mb-1.5 block text-sm font-semibold text-slate-800 dark:text-slate-200">Writing style</label>
         <select
           value={styleMode}
           onChange={(e) => setStyleMode(e.target.value as StyleMode)}
           disabled={!hasStyleProfile}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100"
+          className={`${inputClass} disabled:cursor-not-allowed disabled:opacity-60`}
         >
           <option value="off">Off</option>
           <option value="faithful">Faithful to my previous style</option>
           <option value="improve">Use my style, then improve it</option>
         </select>
         {!hasStyleProfile && (
-          <p className="mt-1 text-xs text-gray-400">
+          <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
             Import previous posts below to unlock style-aware generation.
           </p>
         )}
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">
-          Article URL <span className="text-gray-400">(optional)</span>
+        <label className="mb-1.5 block text-sm font-semibold text-slate-800 dark:text-slate-200">
+          Article URL <span className="font-normal text-slate-400">(optional)</span>
         </label>
         <input
           type="url"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="https://..."
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          className={inputClass}
         />
       </div>
 
       <button
         type="submit"
         disabled={loading || !topic.trim()}
-        className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-600/30 transition hover:from-indigo-500 hover:to-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {loading ? "Generating..." : "Generate Post"}
+        {loading ? "Generating…" : "Generate post"}
       </button>
     </form>
   );
