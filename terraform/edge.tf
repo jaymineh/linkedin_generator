@@ -1,10 +1,12 @@
 resource "random_string" "edge_suffix" {
+  count   = var.enable_front_door_waf ? 1 : 0
   length  = 6
   special = false
   upper   = false
 }
 
 resource "azurerm_cdn_frontdoor_profile" "main" {
+  count                    = var.enable_front_door_waf ? 1 : 0
   name                     = "fdp-${local.prefix}"
   resource_group_name      = azurerm_resource_group.main.name
   sku_name                 = var.front_door_sku
@@ -13,14 +15,16 @@ resource "azurerm_cdn_frontdoor_profile" "main" {
 }
 
 resource "azurerm_cdn_frontdoor_endpoint" "main" {
-  name                     = "fd-${local.prefix}-${random_string.edge_suffix.result}"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.main.id
+  count                    = var.enable_front_door_waf ? 1 : 0
+  name                     = "fd-${local.prefix}-${random_string.edge_suffix[0].result}"
+  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.main[0].id
   tags                     = local.common_tags
 }
 
 resource "azurerm_cdn_frontdoor_origin_group" "frontend" {
+  count                    = var.enable_front_door_waf ? 1 : 0
   name                     = "og-frontend"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.main.id
+  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.main[0].id
   session_affinity_enabled = false
 
   load_balancing {
@@ -38,8 +42,9 @@ resource "azurerm_cdn_frontdoor_origin_group" "frontend" {
 }
 
 resource "azurerm_cdn_frontdoor_origin" "frontend" {
+  count                          = var.enable_front_door_waf ? 1 : 0
   name                           = "static-site"
-  cdn_frontdoor_origin_group_id  = azurerm_cdn_frontdoor_origin_group.frontend.id
+  cdn_frontdoor_origin_group_id  = azurerm_cdn_frontdoor_origin_group.frontend[0].id
   enabled                        = true
   certificate_name_check_enabled = true
   host_name                      = azurerm_static_web_app.frontend.default_host_name
@@ -51,8 +56,9 @@ resource "azurerm_cdn_frontdoor_origin" "frontend" {
 }
 
 resource "azurerm_cdn_frontdoor_origin_group" "backend" {
+  count                    = var.enable_front_door_waf ? 1 : 0
   name                     = "og-backend"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.main.id
+  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.main[0].id
   session_affinity_enabled = false
 
   load_balancing {
@@ -70,8 +76,9 @@ resource "azurerm_cdn_frontdoor_origin_group" "backend" {
 }
 
 resource "azurerm_cdn_frontdoor_origin" "backend" {
+  count                          = var.enable_front_door_waf ? 1 : 0
   name                           = "backend-api"
-  cdn_frontdoor_origin_group_id  = azurerm_cdn_frontdoor_origin_group.backend.id
+  cdn_frontdoor_origin_group_id  = azurerm_cdn_frontdoor_origin_group.backend[0].id
   enabled                        = true
   certificate_name_check_enabled = true
   host_name                      = azurerm_container_app.backend.ingress[0].fqdn
@@ -83,10 +90,11 @@ resource "azurerm_cdn_frontdoor_origin" "backend" {
 }
 
 resource "azurerm_cdn_frontdoor_route" "api" {
+  count                         = var.enable_front_door_waf ? 1 : 0
   name                          = "api-route"
-  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.main.id
-  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.backend.id
-  cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.backend.id]
+  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.main[0].id
+  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.backend[0].id
+  cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.backend[0].id]
   enabled                       = true
   forwarding_protocol           = "HttpsOnly"
   https_redirect_enabled        = true
@@ -96,10 +104,11 @@ resource "azurerm_cdn_frontdoor_route" "api" {
 }
 
 resource "azurerm_cdn_frontdoor_route" "frontend" {
+  count                         = var.enable_front_door_waf ? 1 : 0
   name                          = "frontend-route"
-  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.main.id
-  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.frontend.id
-  cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.frontend.id]
+  cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.main[0].id
+  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.frontend[0].id
+  cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.frontend[0].id]
   enabled                       = true
   forwarding_protocol           = "HttpsOnly"
   https_redirect_enabled        = true
@@ -109,9 +118,10 @@ resource "azurerm_cdn_frontdoor_route" "frontend" {
 }
 
 resource "azurerm_cdn_frontdoor_firewall_policy" "main" {
+  count               = var.enable_front_door_waf ? 1 : 0
   name                = "waf${replace(local.prefix, "-", "")}"
   resource_group_name = azurerm_resource_group.main.name
-  sku_name            = azurerm_cdn_frontdoor_profile.main.sku_name
+  sku_name            = azurerm_cdn_frontdoor_profile.main[0].sku_name
   enabled             = true
   mode                = var.waf_mode
   tags                = local.common_tags
@@ -130,16 +140,17 @@ resource "azurerm_cdn_frontdoor_firewall_policy" "main" {
 }
 
 resource "azurerm_cdn_frontdoor_security_policy" "main" {
+  count                    = var.enable_front_door_waf ? 1 : 0
   name                     = "sp-${local.prefix}"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.main.id
+  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.main[0].id
 
   security_policies {
     firewall {
-      cdn_frontdoor_firewall_policy_id = azurerm_cdn_frontdoor_firewall_policy.main.id
+      cdn_frontdoor_firewall_policy_id = azurerm_cdn_frontdoor_firewall_policy.main[0].id
 
       association {
         domain {
-          cdn_frontdoor_domain_id = azurerm_cdn_frontdoor_endpoint.main.id
+          cdn_frontdoor_domain_id = azurerm_cdn_frontdoor_endpoint.main[0].id
         }
 
         patterns_to_match = ["/*"]

@@ -3,7 +3,11 @@ output "backend_url" {
 }
 
 output "frontend_url" {
-  value = "https://${azurerm_cdn_frontdoor_endpoint.main.host_name}"
+  value = local.frontend_public_url
+}
+
+output "api_base_url" {
+  value = local.api_public_url
 }
 
 output "static_web_app_direct_url" {

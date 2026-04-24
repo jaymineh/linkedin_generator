@@ -38,6 +38,11 @@ variable "front_door_sku" {
   default     = "Standard_AzureFrontDoor"
 }
 
+variable "enable_front_door_waf" {
+  description = "Enable Azure Front Door and WAF in front of the app"
+  default     = false
+}
+
 variable "waf_mode" {
   description = "Front Door WAF mode"
   default     = "Prevention"

@@ -6,6 +6,9 @@ locals {
     environment = var.environment
     managed_by  = "terraform"
   }
+
+  frontend_public_url = var.enable_front_door_waf ? "https://${azurerm_cdn_frontdoor_endpoint.main[0].host_name}" : "https://${azurerm_static_web_app.frontend.default_host_name}"
+  api_public_url      = var.enable_front_door_waf ? local.frontend_public_url : "https://${azurerm_container_app.backend.ingress[0].fqdn}"
 }
 
 resource "azurerm_resource_group" "main" {
