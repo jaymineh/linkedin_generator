@@ -1,9 +1,11 @@
 import asyncio
+import time
 
 import structlog
 from openai import OpenAI
 from pydantic import BaseModel
 
+from app import telemetry
 from app.config import settings
 
 logger = structlog.get_logger()
@@ -63,7 +65,32 @@ def _request_style_profile(user_message: str) -> tuple[StyleProfileOutput, objec
 async def build_style_profile(posts: list[str]) -> StyleProfileOutput:
     logger.info("style_profile_generation_start", sample_count=len(posts))
     user_message = build_style_profile_user_message(posts)
-    profile, usage = await asyncio.to_thread(_request_style_profile, user_message)
+    started = time.perf_counter()
+    with telemetry.tracer.start_as_current_span("openai_build_style_profile"):
+        try:
+            profile, usage = await asyncio.to_thread(_request_style_profile, user_message)
+        except Exception as exc:
+            telemetry.record_openai_completed(
+                operation="build_style_profile",
+                audience="n/a",
+                tone="n/a",
+                style_mode="n/a",
+                success=False,
+                duration_ms=(time.perf_counter() - started) * 1000,
+                error_type=type(exc).__name__,
+            )
+            raise
+
+        telemetry.record_openai_completed(
+            operation="build_style_profile",
+            audience="n/a",
+            tone="n/a",
+            style_mode="n/a",
+            success=True,
+            duration_ms=(time.perf_counter() - started) * 1000,
+            prompt_tokens=usage.prompt_tokens,
+            completion_tokens=usage.completion_tokens,
+        )
     logger.info(
         "style_profile_generated",
         sample_count=len(posts),

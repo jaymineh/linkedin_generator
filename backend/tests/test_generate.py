@@ -1,3 +1,5 @@
+from unittest.mock import ANY, AsyncMock, patch
+
 import pytest
 
 from app.models import StyleProfile
@@ -18,6 +20,64 @@ def test_generate_success(client, mock_openai):
     assert "generation_id" in data
     assert len(data["posts"]) == 1
     assert data["posts"][0]["style"] == "professional"
+
+
+def test_generate_records_observability_metrics(client, mock_openai):
+    with (
+        patch("app.routes.generate.telemetry.record_generation_started") as started,
+        patch("app.routes.generate.telemetry.record_generation_completed") as completed,
+    ):
+        response = client.post(
+            "/api/generate",
+            json={
+                "topic": "AI in production",
+                "audience": "developers",
+                "tone": "professional",
+            },
+        )
+
+    assert response.status_code == 200
+    started.assert_called_once_with(
+        audience="developers",
+        tone="professional",
+        style_mode="off",
+        source_type="manual",
+        style_profile_available=False,
+    )
+    completed.assert_called_once()
+    completed_kwargs = completed.call_args.kwargs
+    assert completed_kwargs["source_type"] == "manual"
+    assert completed_kwargs["scrape_succeeded"] is False
+    assert completed_kwargs["post_count"] == 1
+    assert completed_kwargs["duration_ms"] >= 0
+
+
+def test_generate_records_failure_metrics(client):
+    with (
+        patch("app.services.openai_service.generate_posts", new_callable=AsyncMock) as mock_generate_posts,
+        patch("app.routes.generate.telemetry.record_generation_failed") as failed,
+    ):
+        mock_generate_posts.side_effect = RuntimeError("boom")
+        response = client.post(
+            "/api/generate",
+            json={
+                "topic": "AI in production",
+                "audience": "developers",
+                "tone": "professional",
+            },
+        )
+
+    assert response.status_code == 500
+    failed.assert_called_once_with(
+        audience="developers",
+        tone="professional",
+        style_mode="off",
+        source_type="manual",
+        style_profile_available=False,
+        scrape_succeeded=False,
+        error_type="RuntimeError",
+        duration_ms=ANY,
+    )
 
 
 def test_generate_invalid_audience(client):

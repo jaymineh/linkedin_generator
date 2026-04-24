@@ -3,6 +3,7 @@ import Head from "next/head";
 import Link from "next/link";
 
 import { HistoryItem, deleteGeneration, getHistory } from "../lib/api";
+import { trackEvent, trackException } from "../lib/telemetry";
 
 export default function History() {
   const [items, setItems] = useState<HistoryItem[]>([]);
@@ -15,7 +16,10 @@ export default function History() {
     try {
       const result = await getHistory();
       setItems(result);
-    } catch {
+      trackEvent("frontend_history_loaded", {}, { item_count: result.length });
+    } catch (error) {
+      const exception = error instanceof Error ? error : new Error("History load failed");
+      trackException(exception, { surface: "history_page_load" });
       setError("Could not load history.");
     } finally {
       setLoading(false);
@@ -30,7 +34,10 @@ export default function History() {
     try {
       await deleteGeneration(id);
       setItems((current) => current.filter((item) => item.id !== id));
-    } catch {
+      trackEvent("frontend_history_delete_succeeded");
+    } catch (error) {
+      const exception = error instanceof Error ? error : new Error("History delete failed");
+      trackException(exception, { surface: "history_page_delete" });
       setError("Could not delete that generation.");
     }
   };

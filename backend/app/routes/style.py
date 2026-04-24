@@ -1,7 +1,10 @@
+import time
+
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app import telemetry
 from app.database import get_db
 from app.models import StyleProfile, StyleSample
 from app.schemas import StyleImportRequest, StyleProfileResponse
@@ -13,40 +16,53 @@ logger = structlog.get_logger()
 
 @router.post("/style/import", response_model=StyleProfileResponse)
 async def import_style(request: StyleImportRequest, db: Session = Depends(get_db)):
+    started = time.perf_counter()
     cleaned_posts = [post.strip() for post in request.posts if post.strip()]
     if len(cleaned_posts) < 3:
         raise HTTPException(status_code=400, detail="Import at least 3 previous posts.")
 
-    try:
-        db.query(StyleSample).delete()
-        db.query(StyleProfile).delete()
+    with telemetry.tracer.start_as_current_span("import_style_profile"):
+        telemetry.record_style_import_started(sample_count=len(cleaned_posts))
 
-        for post in cleaned_posts:
-            db.add(StyleSample(content=post))
+        try:
+            db.query(StyleSample).delete()
+            db.query(StyleProfile).delete()
 
-        profile = await style_service.build_style_profile(cleaned_posts)
-        stored_profile = StyleProfile(
-            voice_summary=profile.voice_summary,
-            opening_patterns=profile.opening_patterns,
-            sentence_length_preference=profile.sentence_length_preference,
-            emoji_usage=profile.emoji_usage,
-            hashtag_style=profile.hashtag_style,
-            cta_style=profile.cta_style,
-            preferred_topics=profile.preferred_topics,
-            phrases_to_mimic=profile.phrases_to_mimic,
-            phrases_to_avoid=profile.phrases_to_avoid,
+            for post in cleaned_posts:
+                db.add(StyleSample(content=post))
+
+            profile = await style_service.build_style_profile(cleaned_posts)
+            stored_profile = StyleProfile(
+                voice_summary=profile.voice_summary,
+                opening_patterns=profile.opening_patterns,
+                sentence_length_preference=profile.sentence_length_preference,
+                emoji_usage=profile.emoji_usage,
+                hashtag_style=profile.hashtag_style,
+                cta_style=profile.cta_style,
+                preferred_topics=profile.preferred_topics,
+                phrases_to_mimic=profile.phrases_to_mimic,
+                phrases_to_avoid=profile.phrases_to_avoid,
+                sample_count=len(cleaned_posts),
+            )
+            db.add(stored_profile)
+            db.commit()
+            db.refresh(stored_profile)
+        except Exception as exc:
+            db.rollback()
+            logger.error("style_profile_generation_failed", error=str(exc))
+            telemetry.record_style_import_failed(
+                sample_count=len(cleaned_posts),
+                error_type=type(exc).__name__,
+                duration_ms=(time.perf_counter() - started) * 1000,
+            )
+            raise HTTPException(status_code=500, detail="Style profile generation failed.") from exc
+
+        telemetry.record_style_import_completed(
             sample_count=len(cleaned_posts),
+            duration_ms=(time.perf_counter() - started) * 1000,
         )
-        db.add(stored_profile)
-        db.commit()
-        db.refresh(stored_profile)
-    except Exception as exc:
-        db.rollback()
-        logger.error("style_profile_generation_failed", error=str(exc))
-        raise HTTPException(status_code=500, detail="Style profile generation failed.") from exc
-
-    logger.info("style_import_complete", sample_count=len(cleaned_posts))
-    return stored_profile
+        logger.info("style_import_complete", sample_count=len(cleaned_posts))
+        return stored_profile
 
 
 @router.get("/style/profile", response_model=StyleProfileResponse)

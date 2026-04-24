@@ -6,6 +6,7 @@ import GeneratorForm from "../components/GeneratorForm";
 import PostCard from "../components/PostCard";
 import StyleImportPanel from "../components/StyleImportPanel";
 import { GenerateRequest, PostVariant, StyleProfile, generatePosts, getStyleProfile } from "../lib/api";
+import { trackEvent, trackException } from "../lib/telemetry";
 
 export default function Home() {
   const [posts, setPosts] = useState<PostVariant[]>([]);
@@ -23,10 +24,44 @@ export default function Home() {
     setLoading(true);
     setError(null);
     setPosts([]);
+    const styleMode = req.style_mode || "off";
+    const sourceType = req.url ? "url" : "manual";
+
+    trackEvent("frontend_generate_submitted", {
+      audience: req.audience,
+      tone: req.tone,
+      style_mode: styleMode,
+      source_type: sourceType,
+    });
+
     try {
       const result = await generatePosts(req);
       setPosts(result.posts);
-    } catch {
+      trackEvent(
+        "frontend_generate_succeeded",
+        {
+          audience: req.audience,
+          tone: req.tone,
+          style_mode: styleMode,
+          source_type: sourceType,
+        },
+        { post_count: result.posts.length }
+      );
+    } catch (error) {
+      const exception = error instanceof Error ? error : new Error("Generation failed");
+      trackException(exception, {
+        audience: req.audience,
+        tone: req.tone,
+        style_mode: styleMode,
+        source_type: sourceType,
+        surface: "home_generate",
+      });
+      trackEvent("frontend_generate_failed", {
+        audience: req.audience,
+        tone: req.tone,
+        style_mode: styleMode,
+        source_type: sourceType,
+      });
       setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);

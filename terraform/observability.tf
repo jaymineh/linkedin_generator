@@ -155,7 +155,7 @@ locals {
           queryType    = 0
           resourceType = "microsoft.operationalinsights/workspaces"
           size         = 1
-          title        = "Requests (24h)"
+          title        = "API Requests"
           query        = <<-EOT
           AppRequests
           | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
@@ -173,7 +173,7 @@ locals {
           queryType    = 0
           resourceType = "microsoft.operationalinsights/workspaces"
           size         = 1
-          title        = "Failed Requests (24h)"
+          title        = "Failed Requests"
           query        = <<-EOT
           AppRequests
           | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
@@ -192,7 +192,7 @@ locals {
           queryType    = 0
           resourceType = "microsoft.operationalinsights/workspaces"
           size         = 1
-          title        = "Average Duration ms (24h)"
+          title        = "Average API Latency ms"
           query        = <<-EOT
           AppRequests
           | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
@@ -210,17 +210,18 @@ locals {
           queryType    = 0
           resourceType = "microsoft.operationalinsights/workspaces"
           size         = 1
-          title        = "Error Traces (24h)"
+          title        = "Generation Requests by Tone"
           query        = <<-EOT
-          AppTraces
+          AppMetrics
           | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
-          | where SeverityLevel >= 3
-          | summarize ErrorTraces = count() by bin(TimeGenerated, 1h)
-          | order by TimeGenerated asc
-          | render timechart
+          | where Name == "linkedin_generator.generation.requests"
+          | extend Tone = tostring(Properties["tone"])
+          | summarize Requests = sum(Sum) by Tone
+          | order by Requests desc
+          | render barchart
           EOT
         }
-        name = "error-traces-chart"
+        name = "generation-by-tone"
       },
       {
         type = 3
@@ -229,7 +230,181 @@ locals {
           queryType    = 0
           resourceType = "microsoft.operationalinsights/workspaces"
           size         = 1
-          title        = "Backend CPU Cores (24h)"
+          title        = "Style Mode Mix"
+          query        = <<-EOT
+          AppMetrics
+          | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
+          | where Name == "linkedin_generator.generation.requests"
+          | extend StyleMode = tostring(Properties["style_mode"])
+          | summarize Requests = sum(Sum) by StyleMode
+          | render piechart
+          EOT
+        }
+        name = "style-mode-mix"
+      },
+      {
+        type = 3
+        content = {
+          version      = "KqlItem/1.0"
+          queryType    = 0
+          resourceType = "microsoft.operationalinsights/workspaces"
+          size         = 1
+          title        = "Source Type Mix"
+          query        = <<-EOT
+          AppMetrics
+          | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
+          | where Name == "linkedin_generator.generation.requests"
+          | extend SourceType = tostring(Properties["source_type"])
+          | summarize Requests = sum(Sum) by SourceType
+          | render piechart
+          EOT
+        }
+        name = "source-type-mix"
+      },
+      {
+        type = 3
+        content = {
+          version      = "KqlItem/1.0"
+          queryType    = 0
+          resourceType = "microsoft.operationalinsights/workspaces"
+          size         = 1
+          title        = "Average Generation Latency ms"
+          query        = <<-EOT
+          AppMetrics
+          | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
+          | where Name == "linkedin_generator.generation.duration_ms"
+          | summarize AvgLatencyMs = round(sum(Sum) / sum(ItemCount), 2) by bin(TimeGenerated, 1h)
+          | order by TimeGenerated asc
+          | render timechart
+          EOT
+        }
+        name = "generation-latency"
+      },
+      {
+        type = 3
+        content = {
+          version      = "KqlItem/1.0"
+          queryType    = 0
+          resourceType = "microsoft.operationalinsights/workspaces"
+          size         = 1
+          title        = "Generation Failures by Tone"
+          query        = <<-EOT
+          AppMetrics
+          | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
+          | where Name == "linkedin_generator.generation.failures"
+          | extend Tone = tostring(Properties["tone"])
+          | summarize Failures = sum(Sum) by Tone
+          | order by Failures desc
+          | render barchart
+          EOT
+        }
+        name = "generation-failures-tone"
+      },
+      {
+        type = 3
+        content = {
+          version      = "KqlItem/1.0"
+          queryType    = 0
+          resourceType = "microsoft.operationalinsights/workspaces"
+          size         = 1
+          title        = "OpenAI Latency ms"
+          query        = <<-EOT
+          AppMetrics
+          | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
+          | where Name == "linkedin_generator.openai.duration_ms"
+          | summarize AvgLatencyMs = round(sum(Sum) / sum(ItemCount), 2) by bin(TimeGenerated, 1h)
+          | order by TimeGenerated asc
+          | render timechart
+          EOT
+        }
+        name = "openai-latency"
+      },
+      {
+        type = 3
+        content = {
+          version      = "KqlItem/1.0"
+          queryType    = 0
+          resourceType = "microsoft.operationalinsights/workspaces"
+          size         = 1
+          title        = "Style Imports by Sample Bucket"
+          query        = <<-EOT
+          AppMetrics
+          | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
+          | where Name == "linkedin_generator.style_import.requests"
+          | extend SampleBucket = tostring(Properties["sample_bucket"])
+          | summarize Imports = sum(Sum) by SampleBucket
+          | order by SampleBucket asc
+          | render barchart
+          EOT
+        }
+        name = "style-import-bucket"
+      },
+      {
+        type = 3
+        content = {
+          version      = "KqlItem/1.0"
+          queryType    = 0
+          resourceType = "microsoft.operationalinsights/workspaces"
+          size         = 1
+          title        = "Frontend Generate Outcomes"
+          query        = <<-EOT
+          AppEvents
+          | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
+          | where Name in ("frontend_generate_submitted", "frontend_generate_succeeded", "frontend_generate_failed")
+          | summarize Events = count() by Name
+          | render piechart
+          EOT
+        }
+        name = "frontend-generate-events"
+      },
+      {
+        type = 3
+        content = {
+          version      = "KqlItem/1.0"
+          queryType    = 0
+          resourceType = "microsoft.operationalinsights/workspaces"
+          size         = 1
+          title        = "Frontend Events by Page"
+          query        = <<-EOT
+          AppEvents
+          | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
+          | where Name startswith "frontend_"
+          | extend Page = tostring(Properties["surface"])
+          | extend Page = iff(isempty(Page), "general", Page)
+          | summarize Events = count() by Page
+          | order by Events desc
+          | render barchart
+          EOT
+        }
+        name = "frontend-events-page"
+      },
+      {
+        type = 3
+        content = {
+          version      = "KqlItem/1.0"
+          queryType    = 0
+          resourceType = "microsoft.operationalinsights/workspaces"
+          size         = 1
+          title        = "Recent Failed Requests"
+          query        = <<-EOT
+          AppRequests
+          | where _ResourceId =~ "${lower(azurerm_application_insights.main.id)}"
+          | where Success == false
+          | project TimeGenerated, Name, ResultCode, DurationMs, Url
+          | order by TimeGenerated desc
+          | take 20
+          EOT
+        }
+        name = "failed-requests-table"
+      },
+      {
+        type = 3
+        content = {
+          version      = "KqlItem/1.0"
+          queryType    = 0
+          resourceType = "microsoft.operationalinsights/workspaces"
+          size         = 1
+          title        = "Backend CPU Cores"
           query        = <<-EOT
           AzureMetrics
           | where ResourceId =~ "${lower(azurerm_container_app.backend.id)}"
@@ -248,7 +423,7 @@ locals {
           queryType    = 0
           resourceType = "microsoft.operationalinsights/workspaces"
           size         = 1
-          title        = "Backend Memory MiB (24h)"
+          title        = "Backend Memory MiB"
           query        = <<-EOT
           AzureMetrics
           | where ResourceId =~ "${lower(azurerm_container_app.backend.id)}"

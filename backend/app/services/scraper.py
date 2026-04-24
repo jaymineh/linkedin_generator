@@ -1,8 +1,11 @@
 import ipaddress
+import time
 from urllib.parse import urlparse
 
 import httpx
 import structlog
+
+from app import telemetry
 
 logger = structlog.get_logger()
 
@@ -39,15 +42,35 @@ def _is_public_http_url(url: str) -> bool:
 
 
 async def scrape_url(url: str) -> str | None:
-    if not _is_public_http_url(url):
-        logger.warning("scrape_rejected_non_public_url", url=url)
-        return None
+    started = time.perf_counter()
+    with telemetry.tracer.start_as_current_span("scrape_reference_article"):
+        if not _is_public_http_url(url):
+            logger.warning("scrape_rejected_non_public_url", url=url)
+            telemetry.record_scrape_completed(
+                attempted=True,
+                success=False,
+                outcome="rejected_non_public_url",
+                duration_ms=(time.perf_counter() - started) * 1000,
+            )
+            return None
 
-    try:
-        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
-            response = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
-            response.raise_for_status()
-            return response.text[:8000]
-    except Exception as exc:
-        logger.warning("scrape_failed", url=url, error=str(exc))
-        return None
+        try:
+            async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+                response = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
+                response.raise_for_status()
+                telemetry.record_scrape_completed(
+                    attempted=True,
+                    success=True,
+                    outcome="success",
+                    duration_ms=(time.perf_counter() - started) * 1000,
+                )
+                return response.text[:8000]
+        except Exception as exc:
+            logger.warning("scrape_failed", url=url, error=str(exc))
+            telemetry.record_scrape_completed(
+                attempted=True,
+                success=False,
+                outcome=type(exc).__name__,
+                duration_ms=(time.perf_counter() - started) * 1000,
+            )
+            return None

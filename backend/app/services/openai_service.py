@@ -1,4 +1,5 @@
 import asyncio
+import time
 
 import structlog
 from openai import APIConnectionError, APITimeoutError, OpenAI, RateLimitError
@@ -6,6 +7,7 @@ from pydantic import BaseModel
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from app.config import settings
+from app import telemetry
 
 logger = structlog.get_logger()
 client = OpenAI(api_key=settings.OPENAI_API_KEY, timeout=30.0)
@@ -88,7 +90,7 @@ def build_generate_user_message(
     return message
 
 
-def _request_posts(user_message: str) -> PostsOutput:
+def _request_posts(user_message: str) -> tuple[PostsOutput, object]:
     response = client.beta.chat.completions.parse(
         model="gpt-4o",
         messages=[
@@ -104,7 +106,7 @@ def _request_posts(user_message: str) -> PostsOutput:
         prompt_tokens=response.usage.prompt_tokens,
         completion_tokens=response.usage.completion_tokens,
     )
-    return parsed
+    return parsed, response.usage
 
 
 @retry(
@@ -144,7 +146,32 @@ async def generate_posts(
     if style_mode != "off":
         logger.info("generate_with_style_mode", style_mode=style_mode)
 
-    result = await asyncio.to_thread(_request_posts, user_message)
+    started = time.perf_counter()
+    with telemetry.tracer.start_as_current_span("openai_generate_posts"):
+        try:
+            result, usage = await asyncio.to_thread(_request_posts, user_message)
+        except Exception as exc:
+            telemetry.record_openai_completed(
+                operation="generate_post",
+                audience=audience,
+                tone=tone,
+                style_mode=style_mode,
+                success=False,
+                duration_ms=(time.perf_counter() - started) * 1000,
+                error_type=type(exc).__name__,
+            )
+            raise
+
+        telemetry.record_openai_completed(
+            operation="generate_post",
+            audience=audience,
+            tone=tone,
+            style_mode=style_mode,
+            success=True,
+            duration_ms=(time.perf_counter() - started) * 1000,
+            prompt_tokens=usage.prompt_tokens,
+            completion_tokens=usage.completion_tokens,
+        )
     selected_post = result.posts[0]
     selected_post.style = tone
     return [selected_post]

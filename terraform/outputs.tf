@@ -41,8 +41,7 @@ output "acr_password" {
 }
 
 output "app_insights_connection_string" {
-  value     = azurerm_application_insights.main.connection_string
-  sensitive = true
+  value = azurerm_application_insights.main.connection_string
 }
 
 output "static_web_app_api_key" {

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { importStylePosts, StyleProfile } from "../lib/api";
+import { trackEvent, trackException } from "../lib/telemetry";
 
 interface Props {
   existingProfile: StyleProfile | null;
@@ -26,17 +27,27 @@ export default function StyleImportPanel({ existingProfile, onProfileUpdated }: 
       .filter(Boolean);
 
     if (posts.length < 3) {
+      trackEvent("frontend_style_import_validation_failed", {
+        reason: "insufficient_posts",
+      });
       setError("Paste at least 3 previous posts separated by ---");
       return;
     }
 
     setLoading(true);
     setError(null);
+    trackEvent("frontend_style_import_submitted", {}, { sample_count: posts.length });
     try {
       const profile = await importStylePosts(posts);
       onProfileUpdated(profile);
       setRawPosts("");
-    } catch {
+      trackEvent("frontend_style_import_succeeded", {}, { sample_count: posts.length });
+    } catch (error) {
+      const exception = error instanceof Error ? error : new Error("Style import failed");
+      trackException(exception, {
+        surface: "style_import_panel",
+      });
+      trackEvent("frontend_style_import_failed", {}, { sample_count: posts.length });
       setError("Could not analyze your style. Try again.");
     } finally {
       setLoading(false);

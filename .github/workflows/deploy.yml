@@ -103,7 +103,9 @@ jobs:
         working-directory: frontend
         run: |
           npm ci
-          NEXT_PUBLIC_API_URL=http://localhost:8000 npm run build
+          NEXT_PUBLIC_API_URL=http://localhost:8000 \
+          NEXT_PUBLIC_APPLICATIONINSIGHTS_CONNECTION_STRING="" \
+          npm run build
 
   plan:
     needs: build
@@ -223,6 +225,7 @@ jobs:
           echo "BACKEND_URL=$(terraform -chdir=terraform output -raw backend_url)" >> "$GITHUB_ENV"
           echo "FRONTEND_URL=$(terraform -chdir=terraform output -raw frontend_url)" >> "$GITHUB_ENV"
           echo "API_BASE_URL=$(terraform -chdir=terraform output -raw api_base_url)" >> "$GITHUB_ENV"
+          echo "APP_INSIGHTS_CONNECTION_STRING=$(terraform -chdir=terraform output -raw app_insights_connection_string)" >> "$GITHUB_ENV"
 
       - name: Smoke test backend readiness
         run: curl --fail --silent --show-error "$BACKEND_URL/health/ready"
@@ -243,7 +246,9 @@ jobs:
         working-directory: frontend
         run: |
           npm ci
-          NEXT_PUBLIC_API_URL="$API_BASE_URL" npm run build
+          NEXT_PUBLIC_API_URL="$API_BASE_URL" \
+          NEXT_PUBLIC_APPLICATIONINSIGHTS_CONNECTION_STRING="$APP_INSIGHTS_CONNECTION_STRING" \
+          npm run build
 
       - name: Deploy frontend
         uses: Azure/static-web-apps-deploy@v1
