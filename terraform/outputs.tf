@@ -18,6 +18,14 @@ output "operations_dashboard_name" {
   value = azurerm_portal_dashboard.operations.name
 }
 
+output "operations_workbook_name" {
+  value = azurerm_application_insights_workbook.operations.display_name
+}
+
+output "operations_workbook_id" {
+  value = azurerm_application_insights_workbook.operations.id
+}
+
 output "acr_login_server" {
   value = azurerm_container_registry.acr.login_server
 }
