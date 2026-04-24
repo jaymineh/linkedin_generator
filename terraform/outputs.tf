@@ -3,7 +3,15 @@ output "backend_url" {
 }
 
 output "frontend_url" {
+  value = "https://${azurerm_cdn_frontdoor_endpoint.main.host_name}"
+}
+
+output "static_web_app_direct_url" {
   value = "https://${azurerm_static_web_app.frontend.default_host_name}"
+}
+
+output "operations_dashboard_name" {
+  value = azurerm_portal_dashboard.operations.name
 }
 
 output "acr_login_server" {

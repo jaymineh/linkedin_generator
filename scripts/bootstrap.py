@@ -307,6 +307,7 @@ def main() -> None:
     )
     openai_api_key = get_openai_key(local_env, args.openai_api_key)
     db_password = args.db_password or existing_config.get("db_password") or generate_db_password()
+    alert_email = args.alert_email or existing_config.get("alert_email") or local_env.get("ALERT_EMAIL", "")
 
     ensure_remote_state(
         resource_group=args.tfstate_resource_group,
@@ -339,8 +340,8 @@ def main() -> None:
         gh_secret_set(owner, repo, "TF_BACKEND_KEY", args.tfstate_key)
         gh_secret_set(owner, repo, "OPENAI_API_KEY", openai_api_key)
         gh_secret_set(owner, repo, "DB_PASSWORD", db_password)
-        if args.alert_email:
-            gh_secret_set(owner, repo, "ALERT_EMAIL", args.alert_email)
+        if alert_email:
+            gh_secret_set(owner, repo, "ALERT_EMAIL", alert_email)
         else:
             gh_secret_delete(owner, repo, "ALERT_EMAIL")
 
@@ -357,7 +358,7 @@ def main() -> None:
         "azure_subscription_id": account["subscription_id"],
         "service_principal_object_id": sp_object_id,
         "db_password": db_password,
-        "alert_email": args.alert_email,
+        "alert_email": alert_email,
         "resource_group": resource_group_name(),
         "app_display_name": args.app_display_name,
     }

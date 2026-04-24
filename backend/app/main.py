@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.config import settings
 from app.database import create_tables, engine
@@ -39,6 +40,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.TRUSTED_HOSTS.split(","))
 app.add_middleware(RateLimitMiddleware, rpm=settings.RATE_LIMIT_RPM)
 app.add_middleware(RequestIdMiddleware)
 

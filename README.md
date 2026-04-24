@@ -10,7 +10,7 @@ This repo uses Python scripts for one-time bootstrap and destroy, while GitHub A
 - Node.js 20+
 - Terraform 1.6+
 
-The scripts read `OPENAI_API_KEY` from the root `.env` file. They also accept `OPEN_AI_KEY` as a fallback alias.
+The scripts read `OPENAI_API_KEY` from the root `.env` file. They also accept `OPEN_AI_KEY` as a fallback alias. If you want Azure Monitor alert emails, add `ALERT_EMAIL=you@example.com` to the root `.env` file or pass `--alert-email`.
 
 ## One-time bootstrap
 
@@ -38,7 +38,7 @@ After bootstrap is complete:
 
 For pull requests, the pipeline stops before `deploy`.
 
-For pushes to `main`, the same pipeline continues through production deploy: it bootstraps the resource group and ACR if needed, builds the backend image on the GitHub runner, pushes it to ACR, applies Terraform, builds the frontend, deploys it to Static Web Apps, tightens CORS, and smoke-tests the live app.
+For pushes to `main`, the same pipeline continues through production deploy: it bootstraps the resource group and ACR if needed, builds the backend image on the GitHub runner, pushes it to ACR, applies Terraform, builds the frontend, deploys it to Static Web Apps, publishes a Front Door URL protected by WAF, tightens CORS to that edge URL, and smoke-tests the live app.
 
 If you run `python scripts/deploy.py`, it will only remind you to deploy through GitHub Actions.
 

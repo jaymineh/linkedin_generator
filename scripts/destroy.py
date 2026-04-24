@@ -48,7 +48,7 @@ def main() -> None:
     if not db_password:
         fail("Database password missing. Re-run bootstrap or pass `--db-password`.")
 
-    alert_email = args.alert_email if args.alert_email is not None else config.get("alert_email", "")
+    alert_email = args.alert_email or config.get("alert_email") or local_env.get("ALERT_EMAIL", "")
 
     echo("Initializing Terraform backend...")
     run(["terraform", "init", *terraform_backend_args(config)], cwd=TERRAFORM_DIR)
