@@ -68,55 +68,214 @@ resource "azurerm_monitor_diagnostic_setting" "postgres" {
   }
 }
 
-resource "azurerm_portal_dashboard" "operations" {
-  name                = "dash-${local.prefix}"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
-  tags                = local.common_tags
+locals {
+  operations_dashboard = {
+    lenses = {
+      "0" = {
+        order = 0
+        parts = {
+          "0" = {
+            position = {
+              x       = 0
+              y       = 0
+              rowSpan = 4
+              colSpan = 4
+            }
+            metadata = {
+              inputs = []
+              type   = "Extension/HubsExtension/PartType/MarkdownPart"
+              settings = {
+                content = {
+                  settings = {
+                    title    = "LinkedIn Generator Ops"
+                    subtitle = "Live overview"
+                    content  = <<-EOT
+                    ### Endpoints
+                    - Public app: [${local.frontend_public_url}](${local.frontend_public_url})
+                    - Backend: [https://${azurerm_container_app.backend.ingress[0].fqdn}](https://${azurerm_container_app.backend.ingress[0].fqdn})
 
-  dashboard_properties = <<DASH
-{
-  "lenses": {
-    "0": {
-      "order": 0,
-      "parts": {
-        "0": {
-          "position": {
-            "x": 0,
-            "y": 0,
-            "rowSpan": 8,
-            "colSpan": 16
-          },
-          "metadata": {
-            "inputs": [],
-            "type": "Extension/HubsExtension/PartType/MarkdownPart",
-            "settings": {
-              "content": {
-                "settings": {
-                  "title": "LinkedIn Generator Operations",
-                  "subtitle": "Runbook and observability shortcuts",
-                  "content": "## Live endpoints\\n- Public app URL: ${local.frontend_public_url}\\n- Backend direct URL: https://${azurerm_container_app.backend.ingress[0].fqdn}\\n- Static Web App direct URL: https://${azurerm_static_web_app.frontend.default_host_name}\\n\\n## Azure resources\\n- Application Insights: ${azurerm_application_insights.main.name}\\n- Log Analytics Workspace: ${azurerm_log_analytics_workspace.main.name}\\n- Container App: ${azurerm_container_app.backend.name}\\n- PostgreSQL Flexible Server: ${azurerm_postgresql_flexible_server.main.name}\\n- Front Door endpoint: ${var.enable_front_door_waf ? azurerm_cdn_frontdoor_endpoint.main[0].host_name : "Disabled on current subscription"}\\n\\n## Useful KQL queries\\n### Requests by result code\\n```kusto\\nAppRequests\\n| summarize requests=count() by ResultCode\\n| order by ResultCode asc\\n```\\n\\n### Slow requests over time\\n```kusto\\nAppRequests\\n| summarize avg(DurationMs) by bin(TimeGenerated, 5m)\\n```\\n\\n### Exceptions\\n```kusto\\nAppExceptions\\n| project TimeGenerated, ProblemId, Type, InnermostMessage\\n| order by TimeGenerated desc\\n```\\n\\n### Static Web App diagnostics\\n```kusto\\nAzureDiagnostics\\n| where ResourceProvider == \\\"MICROSOFT.WEB\\\"\\n| order by TimeGenerated desc\\n```\\n\\n### PostgreSQL logs\\n```kusto\\nAzureDiagnostics\\n| where ResourceProvider == \\\"MICROSOFT.DBFORPOSTGRESQL\\\"\\n| order by TimeGenerated desc\\n```"
+                    ### Alerts
+                    - `alert-errors-${local.prefix}`
+                    - `alert-latency-${local.prefix}`
+
+                    ### Resources
+                    - App Insights: `${azurerm_application_insights.main.name}`
+                    - Log Analytics: `${azurerm_log_analytics_workspace.main.name}`
+                    - Postgres: `${azurerm_postgresql_flexible_server.main.name}`
+                    EOT
+                  }
                 }
               }
+            }
+          }
+          "1" = {
+            position = {
+              x       = 4
+              y       = 0
+              rowSpan = 4
+              colSpan = 6
+            }
+            metadata = {
+              inputs = [
+                {
+                  name = "queryInputs"
+                  value = {
+                    timespan = {
+                      duration = "PT24H"
+                    }
+                    id        = azurerm_application_insights.main.id
+                    chartType = 0
+                    metrics = [
+                      {
+                        name       = "requests/count"
+                        resourceId = azurerm_application_insights.main.id
+                      }
+                    ]
+                  }
+                }
+              ]
+              type = "Extension/Microsoft_Azure_Monitoring/PartType/MetricsChartPart"
+            }
+          }
+          "2" = {
+            position = {
+              x       = 10
+              y       = 0
+              rowSpan = 4
+              colSpan = 6
+            }
+            metadata = {
+              inputs = [
+                {
+                  name = "queryInputs"
+                  value = {
+                    timespan = {
+                      duration = "PT24H"
+                    }
+                    id        = azurerm_application_insights.main.id
+                    chartType = 0
+                    metrics = [
+                      {
+                        name       = "requests/failed"
+                        resourceId = azurerm_application_insights.main.id
+                      }
+                    ]
+                  }
+                }
+              ]
+              type = "Extension/Microsoft_Azure_Monitoring/PartType/MetricsChartPart"
+            }
+          }
+          "3" = {
+            position = {
+              x       = 0
+              y       = 4
+              rowSpan = 4
+              colSpan = 8
+            }
+            metadata = {
+              inputs = [
+                {
+                  name = "queryInputs"
+                  value = {
+                    timespan = {
+                      duration = "PT24H"
+                    }
+                    id        = azurerm_application_insights.main.id
+                    chartType = 0
+                    metrics = [
+                      {
+                        name       = "requests/duration"
+                        resourceId = azurerm_application_insights.main.id
+                      }
+                    ]
+                  }
+                }
+              ]
+              type = "Extension/Microsoft_Azure_Monitoring/PartType/MetricsChartPart"
+            }
+          }
+          "4" = {
+            position = {
+              x       = 8
+              y       = 4
+              rowSpan = 4
+              colSpan = 4
+            }
+            metadata = {
+              inputs = [
+                {
+                  name = "queryInputs"
+                  value = {
+                    timespan = {
+                      duration = "PT24H"
+                    }
+                    id        = azurerm_container_app.backend.id
+                    chartType = 0
+                    metrics = [
+                      {
+                        name       = "UsageNanoCores"
+                        resourceId = azurerm_container_app.backend.id
+                      }
+                    ]
+                  }
+                }
+              ]
+              type = "Extension/Microsoft_Azure_Monitoring/PartType/MetricsChartPart"
+            }
+          }
+          "5" = {
+            position = {
+              x       = 12
+              y       = 4
+              rowSpan = 4
+              colSpan = 4
+            }
+            metadata = {
+              inputs = [
+                {
+                  name = "queryInputs"
+                  value = {
+                    timespan = {
+                      duration = "PT24H"
+                    }
+                    id        = azurerm_container_app.backend.id
+                    chartType = 0
+                    metrics = [
+                      {
+                        name       = "WorkingSetBytes"
+                        resourceId = azurerm_container_app.backend.id
+                      }
+                    ]
+                  }
+                }
+              ]
+              type = "Extension/Microsoft_Azure_Monitoring/PartType/MetricsChartPart"
             }
           }
         }
       }
     }
-  },
-  "metadata": {
-    "model": {
-      "timeRange": {
-        "value": {
-          "relative": {
-            "duration": 24,
-            "timeUnit": 1
+    metadata = {
+      model = {
+        timeRange = {
+          value = {
+            relative = {
+              duration = 24
+              timeUnit = 1
+            }
           }
-        },
-        "type": "MsPortalFx.Composition.Configuration.ValueTypes.TimeRange"
+          type = "MsPortalFx.Composition.Configuration.ValueTypes.TimeRange"
+        }
       }
     }
   }
 }
-DASH
+
+resource "azurerm_portal_dashboard" "operations" {
+  name                 = "dash-${local.prefix}"
+  resource_group_name  = azurerm_resource_group.main.name
+  location             = azurerm_resource_group.main.location
+  tags                 = local.common_tags
+  dashboard_properties = jsonencode(local.operations_dashboard)
 }
