@@ -174,14 +174,20 @@ jobs:
       - name: Bootstrap resource group and ACR
         working-directory: terraform
         run: |
-          terraform apply -auto-approve \
-            -target=azurerm_resource_group.main \
-            -target=azurerm_container_registry.acr \
-            -var="openai_api_key=${{ secrets.OPENAI_API_KEY }}" \
-            -var="db_password=${{ secrets.DB_PASSWORD }}" \
-            -var="alert_email=${{ secrets.ALERT_EMAIL }}" \
-            -var="backend_image_tag=${BACKEND_IMAGE_TAG}" \
-            -var="allowed_origins=*"
+          RG_EXISTS=$(az group exists --name "$RESOURCE_GROUP")
+          ACR_NAME=$(az acr list -g "$RESOURCE_GROUP" --query "[0].name" -o tsv 2>/dev/null || true)
+          if [ "$RG_EXISTS" = "true" ] && [ -n "$ACR_NAME" ]; then
+            echo "Resource group and ACR already exist. Skipping targeted bootstrap apply."
+          else
+            terraform apply -auto-approve \
+              -target=azurerm_resource_group.main \
+              -target=azurerm_container_registry.acr \
+              -var="openai_api_key=${{ secrets.OPENAI_API_KEY }}" \
+              -var="db_password=${{ secrets.DB_PASSWORD }}" \
+              -var="alert_email=${{ secrets.ALERT_EMAIL }}" \
+              -var="backend_image_tag=${BACKEND_IMAGE_TAG}" \
+              -var="allowed_origins=*"
+          fi
 
       - name: Get ACR details
         id: acr
