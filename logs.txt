@@ -1,0 +1,5 @@
+https://portal.azure.com/#@Kakonjayoutlook.onmicrosoft.com/resource/subscriptions/01faa809-be5a-47a4-828f-e81a80fde70f/resourceGroups/rg-linkedin-gen-prod/providers/Microsoft.Insights/components/appi-linkedin-gen-prod/quickPulse
+
+https://portal.azure.com/#@Kakonjayoutlook.onmicrosoft.com/resource/subscriptions/01faa809-be5a-47a4-828f-e81a80fde70f/resourceGroups/rg-linkedin-gen-prod/providers/Microsoft.Insights/workbooks/843348bf-2e13-6bc9-1031-6cae3f122eaa/workbook
+
+https://portal.azure.com/#@kakonjayoutlook.onmicrosoft.com/dashboard/arm/subscriptions/01faa809-be5a-47a4-828f-e81a80fde70f/resourcegroups/rg-linkedin-gen-prod/providers/microsoft.portal/dashboards/b1ce3c2b-abee-481f-911c-5a42c9594d52-dashboard
