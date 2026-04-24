@@ -5,11 +5,11 @@ resource "random_string" "edge_suffix" {
 }
 
 resource "azurerm_cdn_frontdoor_profile" "main" {
-  name                = "fdp-${local.prefix}"
-  resource_group_name = azurerm_resource_group.main.name
-  sku_name            = var.front_door_sku
+  name                     = "fdp-${local.prefix}"
+  resource_group_name      = azurerm_resource_group.main.name
+  sku_name                 = var.front_door_sku
   response_timeout_seconds = 120
-  tags                = local.common_tags
+  tags                     = local.common_tags
 }
 
 resource "azurerm_cdn_frontdoor_endpoint" "main" {
@@ -38,9 +38,9 @@ resource "azurerm_cdn_frontdoor_origin_group" "frontend" {
 }
 
 resource "azurerm_cdn_frontdoor_origin" "frontend" {
-  name                          = "static-site"
-  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.frontend.id
-  enabled                       = true
+  name                           = "static-site"
+  cdn_frontdoor_origin_group_id  = azurerm_cdn_frontdoor_origin_group.frontend.id
+  enabled                        = true
   certificate_name_check_enabled = true
   host_name                      = azurerm_static_web_app.frontend.default_host_name
   origin_host_header             = azurerm_static_web_app.frontend.default_host_name
@@ -70,9 +70,9 @@ resource "azurerm_cdn_frontdoor_origin_group" "backend" {
 }
 
 resource "azurerm_cdn_frontdoor_origin" "backend" {
-  name                          = "backend-api"
-  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.backend.id
-  enabled                       = true
+  name                           = "backend-api"
+  cdn_frontdoor_origin_group_id  = azurerm_cdn_frontdoor_origin_group.backend.id
+  enabled                        = true
   certificate_name_check_enabled = true
   host_name                      = azurerm_container_app.backend.ingress[0].fqdn
   origin_host_header             = azurerm_container_app.backend.ingress[0].fqdn
