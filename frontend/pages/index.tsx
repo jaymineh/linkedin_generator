@@ -25,15 +25,13 @@ export default function Home() {
   const [modelOptions, setModelOptions] = useState<ModelProviderOption[]>([]);
 
   useEffect(() => {
-    Promise.all([getStyleProfile(), getModelOptions()])
-      .then(([profile, options]) => {
-        setStyleProfile(profile);
-        setModelOptions(options.providers);
-      })
-      .catch(() => {
-        setStyleProfile(null);
-        setModelOptions([]);
-      });
+    getStyleProfile()
+      .then(setStyleProfile)
+      .catch(() => setStyleProfile(null));
+
+    getModelOptions()
+      .then((options) => setModelOptions(options.providers))
+      .catch(() => setModelOptions([]));
   }, []);
 
   const handleGenerate = useCallback(async (req: GenerateRequest) => {

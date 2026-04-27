@@ -55,6 +55,7 @@ export default function GeneratorForm({ onGenerate, loading, hasStyleProfile, mo
           aria-label="AI model"
           value={selectedModel}
           onChange={(e) => setSelectedModel(e.target.value)}
+          disabled={modelEntries.length === 0}
           className={inputClass}
         >
           <option value="">Default (server)</option>
@@ -65,7 +66,9 @@ export default function GeneratorForm({ onGenerate, loading, hasStyleProfile, mo
           ))}
         </select>
         <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
-          Choose a provisioned large/small model, or keep default to let the backend pick.
+          {modelEntries.length > 0
+            ? "Choose a provisioned large/small model, or keep default to let the backend pick."
+            : "No models returned by backend. Check provider API keys in deployed backend settings/secrets."}
         </p>
       </div>
 
