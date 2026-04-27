@@ -1,22 +1,27 @@
 import { useState } from "react";
 
-import { GenerateRequest, StyleMode } from "../lib/api";
+import { GenerateRequest, LlmProvider, ModelProviderOption, StyleMode } from "../lib/api";
 
 interface Props {
   onGenerate: (req: GenerateRequest) => void;
   loading: boolean;
   hasStyleProfile: boolean;
+  modelOptions: ModelProviderOption[];
 }
 
 const inputClass =
   "w-full rounded-xl border border-slate-200/90 bg-white/90 px-3.5 py-2.5 text-sm text-slate-900 shadow-inner shadow-slate-900/5 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/30 dark:border-slate-600 dark:bg-slate-900/70 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-indigo-400";
 
-export default function GeneratorForm({ onGenerate, loading, hasStyleProfile }: Props) {
+export default function GeneratorForm({ onGenerate, loading, hasStyleProfile, modelOptions }: Props) {
   const [topic, setTopic] = useState("");
   const [audience, setAudience] = useState("developers");
   const [tone, setTone] = useState("professional");
   const [styleMode, setStyleMode] = useState<StyleMode>("off");
   const [url, setUrl] = useState("");
+  const [provider, setProvider] = useState<LlmProvider | "">("");
+  const [model, setModel] = useState("");
+
+  const activeProvider = modelOptions.find((option) => option.provider === provider) ?? null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,11 +34,59 @@ export default function GeneratorForm({ onGenerate, loading, hasStyleProfile }: 
       tone,
       style_mode: hasStyleProfile ? styleMode : "off",
       url: url || undefined,
+      llm_provider: provider || undefined,
+      llm_model: model.trim() || undefined,
     });
   };
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <div>
+        <label className="mb-1.5 block text-sm font-semibold text-slate-800 dark:text-slate-200">AI provider</label>
+        <select
+          aria-label="AI provider"
+          value={provider}
+          onChange={(e) => {
+            const nextProvider = e.target.value as LlmProvider | "";
+            setProvider(nextProvider);
+            const nextOption = modelOptions.find((option) => option.provider === nextProvider);
+            setModel(nextOption?.default_model ?? "");
+          }}
+          className={inputClass}
+        >
+          <option value="">Default (server)</option>
+          {modelOptions.map((option) => (
+            <option key={option.provider} value={option.provider}>
+              {option.provider.toUpperCase()}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="mb-1.5 block text-sm font-semibold text-slate-800 dark:text-slate-200">
+          Model <span className="font-normal text-slate-400">(optional)</span>
+        </label>
+        <input
+          type="text"
+          value={model}
+          onChange={(e) => setModel(e.target.value)}
+          placeholder={activeProvider?.default_model || "gpt-5.4"}
+          list={activeProvider ? `${activeProvider.provider}-models` : undefined}
+          className={inputClass}
+        />
+        {activeProvider && (
+          <datalist id={`${activeProvider.provider}-models`}>
+            {activeProvider.models.map((optionModel) => (
+              <option key={optionModel} value={optionModel} />
+            ))}
+          </datalist>
+        )}
+        <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+          Leave blank to use the provider&apos;s default model on the backend.
+        </p>
+      </div>
+
       <div>
         <label className="mb-1.5 block text-sm font-semibold text-slate-800 dark:text-slate-200">
           What do you want to post about?
@@ -50,7 +103,12 @@ export default function GeneratorForm({ onGenerate, loading, hasStyleProfile }: 
 
       <div>
         <label className="mb-1.5 block text-sm font-semibold text-slate-800 dark:text-slate-200">Target audience</label>
-        <select value={audience} onChange={(e) => setAudience(e.target.value)} className={inputClass}>
+        <select
+          aria-label="Target audience"
+          value={audience}
+          onChange={(e) => setAudience(e.target.value)}
+          className={inputClass}
+        >
           <option value="developers">Developers</option>
           <option value="executives">Executives / Leadership</option>
           <option value="job_seekers">Job Seekers</option>
@@ -60,7 +118,7 @@ export default function GeneratorForm({ onGenerate, loading, hasStyleProfile }: 
 
       <div>
         <label className="mb-1.5 block text-sm font-semibold text-slate-800 dark:text-slate-200">Tone</label>
-        <select value={tone} onChange={(e) => setTone(e.target.value)} className={inputClass}>
+        <select aria-label="Tone" value={tone} onChange={(e) => setTone(e.target.value)} className={inputClass}>
           <option value="professional">Professional</option>
           <option value="casual">Casual</option>
           <option value="storytelling">Storytelling</option>
@@ -71,6 +129,7 @@ export default function GeneratorForm({ onGenerate, loading, hasStyleProfile }: 
       <div>
         <label className="mb-1.5 block text-sm font-semibold text-slate-800 dark:text-slate-200">Writing style</label>
         <select
+          aria-label="Writing style mode"
           value={styleMode}
           onChange={(e) => setStyleMode(e.target.value as StyleMode)}
           disabled={!hasStyleProfile}

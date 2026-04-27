@@ -92,6 +92,27 @@ def test_generate_invalid_audience(client):
     assert response.status_code == 422
 
 
+def test_model_options_lists_configured_providers(client):
+    response = client.get("/api/model-options")
+    assert response.status_code == 200
+    data = response.json()
+    assert "providers" in data
+    assert any(option["provider"] == "openai" for option in data["providers"])
+
+
+def test_generate_invalid_provider_returns_422(client):
+    response = client.post(
+        "/api/generate",
+        json={
+            "topic": "AI in production",
+            "audience": "developers",
+            "tone": "professional",
+            "llm_provider": "invalid",
+        },
+    )
+    assert response.status_code == 422
+
+
 def test_generate_empty_topic(client):
     response = client.post(
         "/api/generate",

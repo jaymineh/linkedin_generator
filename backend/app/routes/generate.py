@@ -1,4 +1,5 @@
 import time
+from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
@@ -6,12 +7,18 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Generation, Post, StyleProfile
-from app.schemas import GenerateRequest, GenerateResponse
+from app.schemas import GenerateRequest, GenerateResponse, ModelOptionsResponse
 from app.services import openai_service, scraper
+from app.services.llm_provider import get_available_provider_options
 from app import telemetry
 
 router = APIRouter()
 logger = structlog.get_logger()
+
+
+@router.get("/model-options", response_model=ModelOptionsResponse)
+def model_options():
+    return ModelOptionsResponse(providers=get_available_provider_options())
 
 
 @router.post("/generate", response_model=GenerateResponse)
@@ -63,7 +70,11 @@ async def generate(request: GenerateRequest, db: Session = Depends(get_db)):
                 style_mode=effective_style_mode,
                 style_profile=style_profile,
                 article_content=article_content,
+                llm_provider=request.llm_provider,
+                llm_model=request.llm_model,
             )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         except Exception as exc:
             logger.error("generation_failed", error=str(exc))
             telemetry.record_generation_failed(
@@ -117,4 +128,7 @@ async def generate(request: GenerateRequest, db: Session = Depends(get_db)):
             duration_ms=(time.perf_counter() - request_started) * 1000,
         )
 
-        return GenerateResponse(generation_id=generation.id, posts=posts)
+        return GenerateResponse(
+            generation_id=UUID(str(generation.id)),
+            posts=[post.model_dump() for post in posts],
+        )

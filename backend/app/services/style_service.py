@@ -1,15 +1,14 @@
 import asyncio
+import json
 import time
 
 import structlog
-from openai import OpenAI
 from pydantic import BaseModel
 
 from app import telemetry
-from app.config import settings
+from app.services.llm_provider import make_client, resolve_provider_and_model
 
 logger = structlog.get_logger()
-client = OpenAI(api_key=settings.OPENAI_API_KEY, timeout=30.0)
 
 STYLE_ANALYZER_PROMPT = """
 You are an expert writing-style analyst.
@@ -49,26 +48,45 @@ def build_style_profile_user_message(posts: list[str]) -> str:
     return "\n\n---\n\n".join(posts)[:12000]
 
 
-def _request_style_profile(user_message: str) -> tuple[StyleProfileOutput, object]:
-    response = client.beta.chat.completions.parse(
-        model="gpt-4o",
+def _request_style_profile(
+    user_message: str,
+    llm_provider: str,
+    llm_model: str,
+) -> tuple[StyleProfileOutput, int, int]:
+    client = make_client(llm_provider)
+    response = client.chat.completions.create(
+        model=llm_model,
         messages=[
             {"role": "system", "content": STYLE_ANALYZER_PROMPT},
             {"role": "user", "content": user_message},
         ],
-        response_format=StyleProfileOutput,
+        response_format={"type": "json_object"},
     )
-    parsed = response.choices[0].message.parsed
-    return parsed, response.usage
+    raw_content = response.choices[0].message.content or "{}"
+    parsed = StyleProfileOutput.model_validate(json.loads(raw_content))
+    usage = response.usage
+    prompt_tokens = usage.prompt_tokens if usage and usage.prompt_tokens else 0
+    completion_tokens = usage.completion_tokens if usage and usage.completion_tokens else 0
+    return parsed, prompt_tokens, completion_tokens
 
 
-async def build_style_profile(posts: list[str]) -> StyleProfileOutput:
+async def build_style_profile(
+    posts: list[str],
+    llm_provider: str | None = None,
+    llm_model: str | None = None,
+) -> StyleProfileOutput:
+    resolved_provider, resolved_model = resolve_provider_and_model(llm_provider, llm_model)
     logger.info("style_profile_generation_start", sample_count=len(posts))
     user_message = build_style_profile_user_message(posts)
     started = time.perf_counter()
     with telemetry.tracer.start_as_current_span("openai_build_style_profile"):
         try:
-            profile, usage = await asyncio.to_thread(_request_style_profile, user_message)
+            profile, prompt_tokens, completion_tokens = await asyncio.to_thread(
+                _request_style_profile,
+                user_message,
+                resolved_provider,
+                resolved_model,
+            )
         except Exception as exc:
             telemetry.record_openai_completed(
                 operation="build_style_profile",
@@ -88,13 +106,15 @@ async def build_style_profile(posts: list[str]) -> StyleProfileOutput:
             style_mode="n/a",
             success=True,
             duration_ms=(time.perf_counter() - started) * 1000,
-            prompt_tokens=usage.prompt_tokens,
-            completion_tokens=usage.completion_tokens,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
         )
     logger.info(
         "style_profile_generated",
         sample_count=len(posts),
-        prompt_tokens=usage.prompt_tokens,
-        completion_tokens=usage.completion_tokens,
+        llm_provider=resolved_provider,
+        llm_model=resolved_model,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
     )
     return profile

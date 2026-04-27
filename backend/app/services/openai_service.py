@@ -1,4 +1,5 @@
 import asyncio
+import json
 import time
 
 import structlog
@@ -6,11 +7,10 @@ from openai import APIConnectionError, APITimeoutError, OpenAI, RateLimitError
 from pydantic import BaseModel
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from app.config import settings
 from app import telemetry
+from app.services.llm_provider import make_client, resolve_provider_and_model
 
 logger = structlog.get_logger()
-client = OpenAI(api_key=settings.OPENAI_API_KEY, timeout=30.0)
 
 SYSTEM_PROMPT = """
 You are an expert LinkedIn content strategist. Generate exactly 1 LinkedIn post.
@@ -90,23 +90,34 @@ def build_generate_user_message(
     return message
 
 
-def _request_posts(user_message: str) -> tuple[PostsOutput, object]:
-    response = client.beta.chat.completions.parse(
-        model="gpt-4o",
+def _request_posts(
+    user_message: str,
+    llm_provider: str,
+    llm_model: str,
+) -> tuple[PostsOutput, int, int]:
+    client: OpenAI = make_client(llm_provider)
+    response = client.chat.completions.create(
+        model=llm_model,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_message},
         ],
-        response_format=PostsOutput,
+        response_format={"type": "json_object"},
     )
-    parsed = response.choices[0].message.parsed
+    raw_content = response.choices[0].message.content or "{}"
+    parsed = PostsOutput.model_validate(json.loads(raw_content))
+    usage = response.usage
+    prompt_tokens = usage.prompt_tokens if usage and usage.prompt_tokens else 0
+    completion_tokens = usage.completion_tokens if usage and usage.completion_tokens else 0
     logger.info(
         "openai_call_complete",
+        llm_provider=llm_provider,
+        llm_model=llm_model,
         posts_generated=len(parsed.posts),
-        prompt_tokens=response.usage.prompt_tokens,
-        completion_tokens=response.usage.completion_tokens,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
     )
-    return parsed, response.usage
+    return parsed, prompt_tokens, completion_tokens
 
 
 @retry(
@@ -116,7 +127,7 @@ def _request_posts(user_message: str) -> tuple[PostsOutput, object]:
     before_sleep=lambda retry_state: logger.warning(
         "openai_retry",
         attempt=retry_state.attempt_number,
-        error=str(retry_state.outcome.exception()),
+        error=str(retry_state.outcome.exception()) if retry_state.outcome else "unknown",
     ),
 )
 async def generate_posts(
@@ -126,7 +137,10 @@ async def generate_posts(
     style_mode: str = "off",
     style_profile: dict | None = None,
     article_content: str | None = None,
+    llm_provider: str | None = None,
+    llm_model: str | None = None,
 ) -> list[PostVariantOutput]:
+    resolved_provider, resolved_model = resolve_provider_and_model(llm_provider, llm_model)
     user_message = build_generate_user_message(
         topic=topic,
         audience=audience,
@@ -138,6 +152,8 @@ async def generate_posts(
 
     logger.info(
         "openai_call_start",
+        llm_provider=resolved_provider,
+        llm_model=resolved_model,
         topic=topic,
         audience=audience,
         tone=tone,
@@ -149,13 +165,20 @@ async def generate_posts(
     started = time.perf_counter()
     with telemetry.tracer.start_as_current_span("openai_generate_posts"):
         try:
-            result, usage = await asyncio.to_thread(_request_posts, user_message)
+            result, prompt_tokens, completion_tokens = await asyncio.to_thread(
+                _request_posts,
+                user_message,
+                resolved_provider,
+                resolved_model,
+            )
         except Exception as exc:
             telemetry.record_openai_completed(
                 operation="generate_post",
                 audience=audience,
                 tone=tone,
                 style_mode=style_mode,
+                llm_provider=resolved_provider,
+                llm_model=resolved_model,
                 success=False,
                 duration_ms=(time.perf_counter() - started) * 1000,
                 error_type=type(exc).__name__,
@@ -167,10 +190,12 @@ async def generate_posts(
             audience=audience,
             tone=tone,
             style_mode=style_mode,
+            llm_provider=resolved_provider,
+            llm_model=resolved_model,
             success=True,
             duration_ms=(time.perf_counter() - started) * 1000,
-            prompt_tokens=usage.prompt_tokens,
-            completion_tokens=usage.completion_tokens,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
         )
     selected_post = result.posts[0]
     selected_post.style = tone

@@ -5,7 +5,15 @@ import AppShell from "../components/AppShell";
 import GeneratorForm from "../components/GeneratorForm";
 import PostCard from "../components/PostCard";
 import StyleImportPanel from "../components/StyleImportPanel";
-import { GenerateRequest, PostVariant, StyleProfile, generatePosts, getStyleProfile } from "../lib/api";
+import {
+  GenerateRequest,
+  ModelProviderOption,
+  PostVariant,
+  StyleProfile,
+  generatePosts,
+  getModelOptions,
+  getStyleProfile,
+} from "../lib/api";
 import { trackEvent, trackException } from "../lib/telemetry";
 
 export default function Home() {
@@ -14,11 +22,18 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [styleProfile, setStyleProfile] = useState<StyleProfile | null>(null);
   const [lastRequest, setLastRequest] = useState<GenerateRequest | null>(null);
+  const [modelOptions, setModelOptions] = useState<ModelProviderOption[]>([]);
 
   useEffect(() => {
-    getStyleProfile()
-      .then(setStyleProfile)
-      .catch(() => setStyleProfile(null));
+    Promise.all([getStyleProfile(), getModelOptions()])
+      .then(([profile, options]) => {
+        setStyleProfile(profile);
+        setModelOptions(options.providers);
+      })
+      .catch(() => {
+        setStyleProfile(null);
+        setModelOptions([]);
+      });
   }, []);
 
   const handleGenerate = useCallback(async (req: GenerateRequest) => {
@@ -29,12 +44,16 @@ export default function Home() {
 
     const styleMode = req.style_mode || "off";
     const sourceType = req.url ? "url" : "manual";
+    const llmProvider = req.llm_provider || "default";
+    const llmModel = req.llm_model || "default";
 
     trackEvent("frontend_generate_submitted", {
       audience: req.audience,
       tone: req.tone,
       style_mode: styleMode,
       source_type: sourceType,
+      llm_provider: llmProvider,
+      llm_model: llmModel,
     });
 
     try {
@@ -47,6 +66,8 @@ export default function Home() {
           tone: req.tone,
           style_mode: styleMode,
           source_type: sourceType,
+          llm_provider: llmProvider,
+          llm_model: llmModel,
         },
         { post_count: result.posts.length }
       );
@@ -57,6 +78,8 @@ export default function Home() {
         tone: req.tone,
         style_mode: styleMode,
         source_type: sourceType,
+        llm_provider: llmProvider,
+        llm_model: llmModel,
         surface: "home_generate",
       });
       trackEvent("frontend_generate_failed", {
@@ -64,6 +87,8 @@ export default function Home() {
         tone: req.tone,
         style_mode: styleMode,
         source_type: sourceType,
+        llm_provider: llmProvider,
+        llm_model: llmModel,
       });
       setError("Something went wrong. Please try again.");
     } finally {
@@ -108,6 +133,7 @@ export default function Home() {
                   onGenerate={handleGenerate}
                   loading={loading}
                   hasStyleProfile={Boolean(styleProfile)}
+                  modelOptions={modelOptions}
                 />
               </div>
               <StyleImportPanel existingProfile={styleProfile} onProfileUpdated={setStyleProfile} />

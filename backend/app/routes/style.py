@@ -31,7 +31,11 @@ async def import_style(request: StyleImportRequest, db: Session = Depends(get_db
             for post in cleaned_posts:
                 db.add(StyleSample(content=post))
 
-            profile = await style_service.build_style_profile(cleaned_posts)
+            profile = await style_service.build_style_profile(
+                cleaned_posts,
+                llm_provider=request.llm_provider,
+                llm_model=request.llm_model,
+            )
             stored_profile = StyleProfile(
                 voice_summary=profile.voice_summary,
                 opening_patterns=profile.opening_patterns,
@@ -47,6 +51,9 @@ async def import_style(request: StyleImportRequest, db: Session = Depends(get_db
             db.add(stored_profile)
             db.commit()
             db.refresh(stored_profile)
+        except ValueError as exc:
+            db.rollback()
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         except Exception as exc:
             db.rollback()
             logger.error("style_profile_generation_failed", error=str(exc))

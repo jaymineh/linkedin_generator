@@ -119,6 +119,44 @@ resource "azurerm_container_app" "backend" {
         name        = "OPENAI_API_KEY"
         secret_name = "openai-api-key"
       }
+      dynamic "env" {
+        for_each = var.google_api_key != "" ? [1] : []
+        content {
+          name        = "GOOGLE_API_KEY"
+          secret_name = "google-api-key"
+        }
+      }
+      dynamic "env" {
+        for_each = var.zai_api_key != "" ? [1] : []
+        content {
+          name        = "ZAI_API_KEY"
+          secret_name = "zai-api-key"
+        }
+      }
+      env {
+        name  = "OPENAI_MODEL"
+        value = var.openai_model
+      }
+      env {
+        name  = "OPENAI_BASE_URL"
+        value = var.openai_base_url
+      }
+      env {
+        name  = "GOOGLE_MODEL"
+        value = var.google_model
+      }
+      env {
+        name  = "GOOGLE_BASE_URL"
+        value = var.google_base_url
+      }
+      env {
+        name  = "ZAI_MODEL"
+        value = var.zai_model
+      }
+      env {
+        name  = "ZAI_BASE_URL"
+        value = var.zai_base_url
+      }
       env {
         name  = "APPLICATIONINSIGHTS_CONNECTION_STRING"
         value = azurerm_application_insights.main.connection_string
@@ -161,6 +199,20 @@ resource "azurerm_container_app" "backend" {
   secret {
     name  = "openai-api-key"
     value = var.openai_api_key
+  }
+  dynamic "secret" {
+    for_each = var.google_api_key != "" ? [1] : []
+    content {
+      name  = "google-api-key"
+      value = var.google_api_key
+    }
+  }
+  dynamic "secret" {
+    for_each = var.zai_api_key != "" ? [1] : []
+    content {
+      name  = "zai-api-key"
+      value = var.zai_api_key
+    }
   }
 
   secret {

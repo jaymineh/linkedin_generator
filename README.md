@@ -60,7 +60,8 @@ The system is split into a static site, a containerized API, a managed database,
 
 - User provides topic, audience, tone, optional article URL, and style mode (if a profile exists).
 - Backend may scrape a **public HTTP(S)** URL (SSRF-hardened) for context.
-- OpenAI returns structured post data; one post is stored per generation.
+- Configured LLM provider returns structured post data; one post is stored per generation.
+- Users can optionally select provider + model per request (`openai`, `google`, `zai`) from the UI when keys are configured.
 
 ### Style learning
 
@@ -77,6 +78,7 @@ The system is split into a static site, a containerized API, a managed database,
 | Method | Path | Purpose |
 |--------|------|---------|
 | `POST` | `/api/generate` | Generate and persist a post |
+| `GET` | `/api/model-options` | List configured providers and suggested models |
 | `GET` | `/api/history` | Paginated history |
 | `DELETE` | `/api/history/{id}` | Delete a generation |
 | `POST` | `/api/style/import` | Build style profile from samples |
@@ -168,6 +170,11 @@ Used by `scripts/bootstrap.py` and friends. Typical keys:
 | Variable | Purpose |
 |----------|---------|
 | `OPENAI_API_KEY` | OpenAI API access |
+| `OPENAI_MODEL` | Default OpenAI model (`gpt-5.4`) |
+| `GOOGLE_API_KEY` | Optional Google Gemini API key (OpenAI-compatible endpoint) |
+| `GOOGLE_MODEL` | Default Google model |
+| `ZAI_API_KEY` | Optional ZAI API key |
+| `ZAI_MODEL` | Default ZAI model |
 | `ALERT_EMAIL` | Optional; forwarded into bootstrap for GitHub secret |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | Optional local backend telemetry |
 
@@ -178,7 +185,7 @@ Created by **`python scripts/bootstrap.py`**. Include (names align with workflow
 - `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`
 - `AZURE_RESOURCE_GROUP`
 - `TF_BACKEND_RESOURCE_GROUP`, `TF_BACKEND_STORAGE_ACCOUNT`, `TF_BACKEND_CONTAINER`, `TF_BACKEND_KEY`
-- `OPENAI_API_KEY`, `DB_PASSWORD`
+- `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `ZAI_API_KEY`, `DB_PASSWORD`
 - `ALERT_EMAIL` — if **empty**, Terraform **does not** create email action groups or metric alerts (see `terraform/alerts.tf` `count`).
 
 ### Frontend build-time variables (production)

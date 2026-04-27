@@ -1,6 +1,7 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export type StyleMode = "off" | "faithful" | "improve";
+export type LlmProvider = "openai" | "google" | "zai";
 
 export interface PostVariant {
   style: string;
@@ -15,6 +16,8 @@ export interface GenerateRequest {
   tone: string;
   style_mode?: StyleMode;
   url?: string;
+  llm_provider?: LlmProvider;
+  llm_model?: string;
 }
 
 export interface GenerateResponse {
@@ -44,6 +47,16 @@ export interface StyleProfile {
   phrases_to_avoid: string[];
   sample_count: number;
   created_at?: string;
+}
+
+export interface ModelProviderOption {
+  provider: LlmProvider;
+  default_model: string;
+  models: string[];
+}
+
+export interface ModelOptionsResponse {
+  providers: ModelProviderOption[];
 }
 
 export async function generatePosts(req: GenerateRequest): Promise<GenerateResponse> {
@@ -81,6 +94,14 @@ export async function importStylePosts(posts: string[]): Promise<StyleProfile> {
   });
   if (!res.ok) {
     throw new Error("Style import failed");
+  }
+  return res.json();
+}
+
+export async function getModelOptions(): Promise<ModelOptionsResponse> {
+  const res = await fetch(`${API_BASE}/api/model-options`);
+  if (!res.ok) {
+    throw new Error("Failed to load model options");
   }
   return res.json();
 }

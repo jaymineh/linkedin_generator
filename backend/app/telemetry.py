@@ -297,6 +297,8 @@ def record_openai_completed(
     audience: str,
     tone: str,
     style_mode: str,
+    llm_provider: str = "openai",
+    llm_model: str = "gpt-5.4",
     success: bool,
     duration_ms: float,
     prompt_tokens: int = 0,
@@ -309,6 +311,8 @@ def record_openai_completed(
             "audience": audience,
             "tone": tone,
             "style_mode": style_mode,
+            "llm_provider": llm_provider,
+            "llm_model": llm_model,
             "success": success,
             "error_type": error_type,
         }

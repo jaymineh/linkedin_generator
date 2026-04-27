@@ -339,6 +339,14 @@ def main() -> None:
         gh_secret_set(owner, repo, "TF_BACKEND_CONTAINER", args.tfstate_container)
         gh_secret_set(owner, repo, "TF_BACKEND_KEY", args.tfstate_key)
         gh_secret_set(owner, repo, "OPENAI_API_KEY", openai_api_key)
+        if local_env.get("GOOGLE_API_KEY"):
+            gh_secret_set(owner, repo, "GOOGLE_API_KEY", local_env["GOOGLE_API_KEY"])
+        else:
+            gh_secret_delete(owner, repo, "GOOGLE_API_KEY")
+        if local_env.get("ZAI_API_KEY"):
+            gh_secret_set(owner, repo, "ZAI_API_KEY", local_env["ZAI_API_KEY"])
+        else:
+            gh_secret_delete(owner, repo, "ZAI_API_KEY")
         gh_secret_set(owner, repo, "DB_PASSWORD", db_password)
         if alert_email:
             gh_secret_set(owner, repo, "ALERT_EMAIL", alert_email)

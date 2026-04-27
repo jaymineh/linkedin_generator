@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 VALID_AUDIENCES = Literal["developers", "executives", "job_seekers", "general"]
 VALID_TONES = Literal["professional", "casual", "storytelling", "thought_leader"]
 VALID_STYLE_MODES = Literal["off", "faithful", "improve"]
+VALID_LLM_PROVIDERS = Literal["openai", "google", "zai"]
 
 
 class GenerateRequest(BaseModel):
@@ -15,6 +16,8 @@ class GenerateRequest(BaseModel):
     tone: VALID_TONES
     style_mode: VALID_STYLE_MODES = "off"
     url: Optional[str] = None
+    llm_provider: Optional[VALID_LLM_PROVIDERS] = None
+    llm_model: Optional[str] = Field(default=None, min_length=1, max_length=120)
 
 
 class PostVariant(BaseModel):
@@ -45,6 +48,8 @@ class HistoryItem(BaseModel):
 
 class StyleImportRequest(BaseModel):
     posts: list[str] = Field(..., min_length=3, max_length=20)
+    llm_provider: Optional[VALID_LLM_PROVIDERS] = None
+    llm_model: Optional[str] = Field(default=None, min_length=1, max_length=120)
 
 
 class StyleProfileResponse(BaseModel):
@@ -61,3 +66,13 @@ class StyleProfileResponse(BaseModel):
     created_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ModelProviderOption(BaseModel):
+    provider: VALID_LLM_PROVIDERS
+    default_model: str
+    models: list[str]
+
+
+class ModelOptionsResponse(BaseModel):
+    providers: list[ModelProviderOption]

@@ -47,6 +47,7 @@ def main() -> None:
     db_password = args.db_password or config.get("db_password")
     if not db_password:
         fail("Database password missing. Re-run bootstrap or pass `--db-password`.")
+    db_password = str(db_password)
 
     alert_email = args.alert_email or config.get("alert_email") or local_env.get("ALERT_EMAIL", "")
 
@@ -77,6 +78,8 @@ def main() -> None:
             "TF_BACKEND_CONTAINER",
             "TF_BACKEND_KEY",
             "OPENAI_API_KEY",
+            "GOOGLE_API_KEY",
+            "ZAI_API_KEY",
             "DB_PASSWORD",
             "ALERT_EMAIL",
             "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
