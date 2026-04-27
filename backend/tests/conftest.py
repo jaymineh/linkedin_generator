@@ -14,6 +14,8 @@ TEST_DB_URL = os.getenv(
 os.environ.setdefault("DATABASE_URL", TEST_DB_URL)
 os.environ.setdefault("OPENAI_API_KEY", "test-key")
 os.environ.setdefault("APPLICATIONINSIGHTS_CONNECTION_STRING", "")
+# Avoid cross-test rate limit bleed in CI test runs.
+os.environ.setdefault("RATE_LIMIT_RPM", "100000")
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app.database import Base, get_db  # noqa: E402
