@@ -53,7 +53,7 @@ variable "google_base_url" {
 
 variable "zai_model" {
   description = "Default ZAI model used by the backend."
-  default     = "glm-4.5-air"
+  default     = "glm-4.7-flash"
 }
 
 variable "zai_base_url" {

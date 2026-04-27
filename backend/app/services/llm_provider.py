@@ -15,7 +15,7 @@ ZAI_PROVIDER = "zai"
 PROVIDER_PRIORITY: list[ProviderName] = [OPENAI_PROVIDER, GOOGLE_PROVIDER, ZAI_PROVIDER]
 
 OPENAI_MODELS = ["gpt-5.4", "gpt-5.4-mini"]
-GOOGLE_MODELS = ["gemini-3.1-pro-preview", "gemini-2.5-flash"]
+GOOGLE_MODELS = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"]
 ZAI_MODELS = ["glm-4.7", "glm-4.7-flash"]
 
 
@@ -52,7 +52,7 @@ def _provider_configs() -> dict[ProviderName, ProviderConfig]:
             name=ZAI_PROVIDER,
             api_key=getattr(settings, "ZAI_API_KEY", ""),
             base_url=getattr(settings, "ZAI_BASE_URL", "") or None,
-            default_model=getattr(settings, "ZAI_MODEL", "glm-4.5-air"),
+            default_model=getattr(settings, "ZAI_MODEL", "glm-4.7-flash"),
             models=ZAI_MODELS,
         ),
     }

@@ -2,6 +2,27 @@ import { useState } from "react";
 
 import { GenerateRequest, ModelProviderOption, StyleMode } from "../lib/api";
 
+// Hardcoded fallback model catalogue — shown when backend returns no providers
+// (e.g. Azure secrets not yet propagated). The backend will still validate the
+// model at generation time.
+const FALLBACK_PROVIDERS: ModelProviderOption[] = [
+  {
+    provider: "openai",
+    default_model: "gpt-5.4",
+    models: ["gpt-5.4", "gpt-5.4-mini"],
+  },
+  {
+    provider: "google",
+    default_model: "gemini-2.5-flash",
+    models: ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"],
+  },
+  {
+    provider: "zai",
+    default_model: "glm-4.7-flash",
+    models: ["glm-4.7", "glm-4.7-flash"],
+  },
+];
+
 interface Props {
   onGenerate: (req: GenerateRequest) => void;
   loading: boolean;
@@ -20,7 +41,12 @@ export default function GeneratorForm({ onGenerate, loading, hasStyleProfile, mo
   const [url, setUrl] = useState("");
   const [selectedModel, setSelectedModel] = useState("");
 
-  const modelEntries = modelOptions.flatMap((option) =>
+  // Use backend-provided options if available, otherwise fall back to the
+  // hardcoded catalogue so the dropdown is never empty.
+  const usingFallback = modelOptions.length === 0;
+  const effectiveProviders = usingFallback ? FALLBACK_PROVIDERS : modelOptions;
+
+  const modelEntries = effectiveProviders.flatMap((option) =>
     option.models.map((modelName) => ({
       provider: option.provider,
       model: modelName,
@@ -55,7 +81,6 @@ export default function GeneratorForm({ onGenerate, loading, hasStyleProfile, mo
           aria-label="AI model"
           value={selectedModel}
           onChange={(e) => setSelectedModel(e.target.value)}
-          disabled={modelEntries.length === 0}
           className={inputClass}
         >
           <option value="">Default (server)</option>
@@ -66,9 +91,9 @@ export default function GeneratorForm({ onGenerate, loading, hasStyleProfile, mo
           ))}
         </select>
         <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
-          {modelEntries.length > 0
-            ? "Choose a provisioned large/small model, or keep default to let the backend pick."
-            : "No models returned by backend. Check provider API keys in deployed backend settings/secrets."}
+          {usingFallback
+            ? "Showing known models. Backend did not return live options — verify API key secrets are set in Azure."
+            : "Choose a provisioned model, or keep \"Default\" to let the backend pick."}
         </p>
       </div>
 
