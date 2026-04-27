@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { GenerateRequest, LlmProvider, ModelProviderOption, StyleMode } from "../lib/api";
+import { GenerateRequest, ModelProviderOption, StyleMode } from "../lib/api";
 
 interface Props {
   onGenerate: (req: GenerateRequest) => void;
@@ -18,10 +18,16 @@ export default function GeneratorForm({ onGenerate, loading, hasStyleProfile, mo
   const [tone, setTone] = useState("professional");
   const [styleMode, setStyleMode] = useState<StyleMode>("off");
   const [url, setUrl] = useState("");
-  const [provider, setProvider] = useState<LlmProvider | "">("");
-  const [model, setModel] = useState("");
+  const [selectedModel, setSelectedModel] = useState("");
 
-  const activeProvider = modelOptions.find((option) => option.provider === provider) ?? null;
+  const modelEntries = modelOptions.flatMap((option) =>
+    option.models.map((modelName) => ({
+      provider: option.provider,
+      model: modelName,
+      size: /mini|flash|air/i.test(modelName) ? "small" : "large",
+    }))
+  );
+  const selectedModelEntry = modelEntries.find((entry) => entry.model === selectedModel) ?? null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,56 +40,32 @@ export default function GeneratorForm({ onGenerate, loading, hasStyleProfile, mo
       tone,
       style_mode: hasStyleProfile ? styleMode : "off",
       url: url || undefined,
-      llm_provider: provider || undefined,
-      llm_model: model.trim() || undefined,
+      llm_provider: selectedModelEntry?.provider,
+      llm_model: selectedModelEntry?.model,
     });
   };
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       <div>
-        <label className="mb-1.5 block text-sm font-semibold text-slate-800 dark:text-slate-200">AI provider</label>
+        <label className="mb-1.5 block text-sm font-semibold text-slate-800 dark:text-slate-200">
+          AI model
+        </label>
         <select
-          aria-label="AI provider"
-          value={provider}
-          onChange={(e) => {
-            const nextProvider = e.target.value as LlmProvider | "";
-            setProvider(nextProvider);
-            const nextOption = modelOptions.find((option) => option.provider === nextProvider);
-            setModel(nextOption?.default_model ?? "");
-          }}
+          aria-label="AI model"
+          value={selectedModel}
+          onChange={(e) => setSelectedModel(e.target.value)}
           className={inputClass}
         >
           <option value="">Default (server)</option>
-          {modelOptions.map((option) => (
-            <option key={option.provider} value={option.provider}>
-              {option.provider.toUpperCase()}
+          {modelEntries.map((entry) => (
+            <option key={`${entry.provider}-${entry.model}`} value={entry.model}>
+              {entry.provider.toUpperCase()} — {entry.model} ({entry.size})
             </option>
           ))}
         </select>
-      </div>
-
-      <div>
-        <label className="mb-1.5 block text-sm font-semibold text-slate-800 dark:text-slate-200">
-          Model <span className="font-normal text-slate-400">(optional)</span>
-        </label>
-        <input
-          type="text"
-          value={model}
-          onChange={(e) => setModel(e.target.value)}
-          placeholder={activeProvider?.default_model || "gpt-5.4"}
-          list={activeProvider ? `${activeProvider.provider}-models` : undefined}
-          className={inputClass}
-        />
-        {activeProvider && (
-          <datalist id={`${activeProvider.provider}-models`}>
-            {activeProvider.models.map((optionModel) => (
-              <option key={optionModel} value={optionModel} />
-            ))}
-          </datalist>
-        )}
         <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
-          Leave blank to use the provider&apos;s default model on the backend.
+          Choose a provisioned large/small model, or keep default to let the backend pick.
         </p>
       </div>
 

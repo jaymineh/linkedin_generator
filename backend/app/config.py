@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     GOOGLE_MODEL: str = "gemini-2.5-flash"
     GOOGLE_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
     ZAI_API_KEY: str = ""
-    ZAI_MODEL: str = "glm-4.5-air"
+    ZAI_MODEL: str = "glm-4.7-flash"
     ZAI_BASE_URL: str = "https://api.z.ai/api/paas/v4/"
     APPLICATIONINSIGHTS_CONNECTION_STRING: str = ""
     ALLOWED_ORIGINS: str = "http://localhost:3000"
@@ -22,4 +22,4 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
-settings = Settings()
+settings = Settings()  # type: ignore[call-arg]

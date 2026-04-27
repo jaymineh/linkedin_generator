@@ -14,9 +14,9 @@ ZAI_PROVIDER = "zai"
 
 PROVIDER_PRIORITY: list[ProviderName] = [OPENAI_PROVIDER, GOOGLE_PROVIDER, ZAI_PROVIDER]
 
-OPENAI_MODELS = ["gpt-5.4", "gpt-5.4-mini", "gpt-4.1"]
-GOOGLE_MODELS = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"]
-ZAI_MODELS = ["glm-4.5", "glm-4.5-air"]
+OPENAI_MODELS = ["gpt-5.4", "gpt-5.4-mini"]
+GOOGLE_MODELS = ["gemini-3.1-pro-preview", "gemini-2.5-flash"]
+ZAI_MODELS = ["glm-4.7", "glm-4.7-flash"]
 
 
 @dataclass(frozen=True)
@@ -86,12 +86,34 @@ def resolve_provider_and_model(
             raise ValueError(f"Unsupported provider: {requested_provider}")
         if not cfg.enabled:
             raise ValueError(f"Provider '{requested_provider}' is not configured on the server.")
-        return cfg.name, requested_model or cfg.default_model
+        resolved_model = requested_model or cfg.default_model
+        if resolved_model not in cfg.models:
+            raise ValueError(
+                f"Model '{resolved_model}' is not supported for provider '{requested_provider}'."
+            )
+        return cfg.name, resolved_model
+
+    if requested_model:
+        matching_providers: list[ProviderName] = []
+        for provider in PROVIDER_PRIORITY:
+            cfg = configs[provider]
+            if cfg.enabled and requested_model in cfg.models:
+                matching_providers.append(provider)
+        if len(matching_providers) == 1:
+            provider = matching_providers[0]
+            return provider, requested_model
+        if len(matching_providers) > 1:
+            raise ValueError(
+                f"Model '{requested_model}' is available on multiple providers. Specify llm_provider."
+            )
+        raise ValueError(
+            f"Model '{requested_model}' is not available for any configured provider on this server."
+        )
 
     for provider in PROVIDER_PRIORITY:
         cfg = configs[provider]
         if cfg.enabled:
-            return cfg.name, requested_model or cfg.default_model
+            return cfg.name, cfg.default_model
 
     raise ValueError("No LLM provider is configured. Add at least one API key in the environment.")
 
